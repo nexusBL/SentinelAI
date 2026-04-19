@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: sentinelai-app
+    working_dir: /workspace
+    command:
+      [
+        "python",
+        "main.py",
+        "phase1",
+        "--url",
+        "https://example.com",
+        "--instruction",
+        "Open the landing page and capture a baseline."
+      ]
+    environment:
+      SENTINELAI_BROWSER_HEADLESS: "true"
+      SENTINELAI_ARTIFACTS_DIR: /workspace/artifacts
+    volumes:
+      - ..:/workspace
+
