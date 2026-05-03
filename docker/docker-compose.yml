@@ -9,15 +9,12 @@ services:
       [
         "python",
         "main.py",
-        "phase1",
-        "--url",
-        "https://example.com",
-        "--instruction",
-        "Open the landing page and capture a baseline."
+        "phase2",
+        "--test",
+        "testcases/sample_test.json"
       ]
     environment:
       SENTINELAI_BROWSER_HEADLESS: "true"
       SENTINELAI_ARTIFACTS_DIR: /workspace/artifacts
     volumes:
       - ..:/workspace
-

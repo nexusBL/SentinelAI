@@ -1,87 +1,169 @@
 # SentinelAI
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. This repository starts with **Phase 1**: open a URL with Playwright, capture baseline artifacts, and persist a report in a structure that can later host LangGraph agents, memory, MCP servers, and AI-driven validation.
+SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, and **Phase 4**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, and LangGraph-based orchestration with retries and replanning.
 
-## Current Phase
-
-Phase 1 is implemented with:
+## Current Capabilities
 
 - Playwright browser automation
 - before/after screenshots
+- per-step screenshots
 - DOM snapshot capture
-- JSON + HTML run reports
-- Docker-ready project layout
+- JSON + HTML reports
+- structured JSON test cases
+- deterministic step execution
+- rule-based assertions
+- AI test planning with Ollama
+- LangGraph workflow orchestration
+- retry-aware replanning
+- centralized logging utilities
+- Docker-ready app scaffold
 
-## Planned Architecture
+## Architecture Direction
 
 Target workflow for later phases:
 
 `START -> Planner -> Memory Read -> Executor -> Screenshot -> Validator -> Memory Write -> Reporter -> END`
 
-Planned components:
+Current implementation path:
 
-- `agents/`: LangGraph planner, executor, validator, reporter
-- `browser/`: Playwright browser control and resilient action execution
-- `memory/`: episodic and semantic memory backed by a vector store
-- `mcp_servers/`: browser, screenshot, and memory tool servers
-- `validation/`: DOM, visual, and AI-assisted validation
-- `reporting/`: structured logs and user-facing reports
-- `config/`: runtime settings
+- `ai/`: Ollama HTTP client
+- `agents/`: planner and deterministic step execution
+- `browser/`: Playwright browser control
+- `reporting/`: artifact and report generation
+- `validation/`: rule-based assertions
+- `sentinelai/`: shared runtime types and test-case schema
 
 ## Repository Layout
 
 ```text
 SentinelAI/
-├── agents/
-├── browser/
-├── config/
-├── docker/
-├── mcp_servers/
-├── memory/
-├── reporting/
-├── sentinelai/
-├── validation/
-└── main.py
+|-- ai/
+|-- agents/
+|-- browser/
+|-- config/
+|-- docker/
+|-- mcp_servers/
+|-- memory/
+|-- reporting/
+|-- sentinelai/
+|-- testcases/
+|-- validation/
+`-- main.py
 ```
 
-## Local Setup
+## Python Setup
 
-1. Create a virtual environment:
+1. Create and activate the virtual environment:
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-2. Install dependencies:
+2. Install Python dependencies inside `.venv`:
 
 ```powershell
 pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-3. Run Phase 1:
+This installs the current Python runtime stack, including `playwright`, `requests`, and `langgraph`.
+
+## Ollama Setup
+
+Ollama runs as a separate system service. It is **not** installed inside the Python virtual environment.
+
+1. Install Ollama from:
+
+```text
+https://ollama.com
+```
+
+2. Start the Ollama service:
+
+```bash
+ollama serve
+```
+
+3. Pull the default model:
+
+```bash
+ollama pull llama3
+```
+
+Default Ollama endpoint used by SentinelAI:
+
+```text
+http://localhost:11434/api/generate
+```
+
+Optional environment variables are shown in [.env.example](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/.env.example:1).
+
+## Running SentinelAI
+
+Phase 1 baseline navigation:
 
 ```powershell
 python main.py phase1 --url https://example.com --instruction "Open the landing page and capture a baseline."
 ```
 
+Phase 2 deterministic JSON testcase:
+
+```powershell
+python main.py phase2 --test testcases/sample_test.json
+```
+
+Phase 3 natural-language planning with Ollama:
+
+```powershell
+python main.py phase3 --url https://example.com --instruction "Open the homepage and verify the title contains Example Domain"
+```
+
+Phase 4 LangGraph orchestration with retries:
+
+```powershell
+python main.py phase4 --url https://example.com --instruction "Test the homepage" --max-retries 2
+```
+
+Optional model override:
+
+```powershell
+python main.py phase3 --url https://example.com --instruction "test homepage" --model mistral
+```
+
 Artifacts are written under `artifacts/runs/<run_id>/`.
+
+Each run now pre-creates orchestration-ready subdirectories for future observability and reproducibility work:
+
+- `graph/`
+- `planner/`
+- `metrics/`
+
+Phase 4 writes:
+
+- `graph/graph_trace.json`
+- `planner/planner_trace.json`
+- `metrics/execution_metrics.json`
+
+Phase 3 planner logs include:
+
+- planner prompt
+- raw LLM responses per attempt
+- parsed JSON per valid parse attempt
+- final normalized test plan
 
 ## Docker
 
-Phase 1 includes an app container scaffold:
+The Docker scaffold currently runs the deterministic app container workflow:
 
 ```powershell
 docker compose -f docker/docker-compose.yml up --build
 ```
 
+If you want to use Phase 3 from Docker later, point the container at a reachable Ollama service endpoint.
+
 ## What Comes Next
 
-- Phase 2: basic assertions and validation results
-- Phase 3: Ollama planning prompts
-- Phase 4: LangGraph agent workflow
 - Phase 5: vector memory
 - Phase 6: MCP tool layer
 - Phase 7: expanded multi-container runtime
-

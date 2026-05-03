@@ -1,0 +1,45 @@
+{
+  "name": "Example Homepage Smoke Test",
+  "description": "Open the homepage and validate the basic visible signals.",
+  "target_url": "https://example.com",
+  "steps": [
+    {
+      "action": "navigate",
+      "value": "https://example.com",
+      "description": "Open the example homepage"
+    },
+    {
+      "action": "wait",
+      "value": 500,
+      "description": "Give the page a brief moment to settle"
+    },
+    {
+      "action": "extract",
+      "selector": "h1",
+      "value": "text",
+      "description": "Capture the main heading text"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "url_contains",
+      "value": "example.com",
+      "description": "URL should stay on the example.com domain"
+    },
+    {
+      "type": "title_contains",
+      "value": "Example Domain",
+      "description": "Page title should contain the expected title"
+    },
+    {
+      "type": "text_exists",
+      "value": "Example Domain",
+      "description": "The main landing text should be visible"
+    },
+    {
+      "type": "element_exists",
+      "selector": "h1",
+      "description": "The main heading element should exist"
+    }
+  ]
+}

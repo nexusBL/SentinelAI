@@ -12,5 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY . /workspace
 
-CMD ["python", "main.py", "phase1", "--url", "https://example.com"]
-
+CMD ["python", "main.py", "phase2", "--test", "testcases/sample_test.json"]

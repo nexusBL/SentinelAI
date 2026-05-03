@@ -36,9 +36,24 @@ class StorageSettings:
 
 
 @dataclass(slots=True)
+class OllamaSettings:
+    endpoint: str
+    model: str
+    timeout_seconds: int
+    max_attempts: int
+
+
+@dataclass(slots=True)
+class GraphSettings:
+    max_retries: int
+
+
+@dataclass(slots=True)
 class AppSettings:
     browser: BrowserSettings
     storage: StorageSettings
+    ollama: OllamaSettings
+    graph: GraphSettings
 
 
 def load_settings(project_root: Path | None = None) -> AppSettings:
@@ -63,5 +78,17 @@ def load_settings(project_root: Path | None = None) -> AppSettings:
         storage=StorageSettings(
             artifacts_root=artifacts_root,
             runs_root=artifacts_root / "runs",
+        ),
+        ollama=OllamaSettings(
+            endpoint=os.getenv(
+                "SENTINELAI_OLLAMA_ENDPOINT",
+                "http://localhost:11434/api/generate",
+            ),
+            model=os.getenv("SENTINELAI_OLLAMA_MODEL", "llama3"),
+            timeout_seconds=_get_int("SENTINELAI_OLLAMA_TIMEOUT_SECONDS", 60),
+            max_attempts=_get_int("SENTINELAI_OLLAMA_MAX_ATTEMPTS", 3),
+        ),
+        graph=GraphSettings(
+            max_retries=_get_int("SENTINELAI_GRAPH_MAX_RETRIES", 2),
         ),
     )

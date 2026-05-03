@@ -9,3 +9,7 @@ Planned agents:
 - `validator_agent`: checks DOM, screenshots, and AI reasoning
 - `reporter_agent`: produces structured run summaries
 
+Current deterministic runtime support:
+
+- `step_executor`: executes structured Phase 2 test steps before AI planning is added
+- `planner_agent`: calls Ollama and turns natural language into Phase 2-compatible plans

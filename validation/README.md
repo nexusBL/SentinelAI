@@ -9,3 +9,9 @@ Planned validation modes:
 - AI-assisted pass/fail reasoning
 - retry triggers with modified execution strategies
 
+Current Phase 2 support:
+
+- `text_exists`
+- `element_exists`
+- `url_contains`
+- `title_contains`
