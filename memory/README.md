@@ -1,11 +1,11 @@
 # Memory
 
-This package is reserved for SentinelAI memory services.
+This package contains SentinelAI Phase 5 memory services.
 
-Planned capabilities:
+Current capabilities:
 
-- episodic memory for past runs and failures
-- semantic memory for UI patterns and reusable behavior
-- vector retrieval before execution
-- prompt injection of relevant prior runs
-
+- persistent FAISS-backed vector storage
+- configurable embedding providers
+- retrieval of similar prior runs before planning
+- memory prompt injection for the planner
+- automatic storage of completed workflow summaries after validation

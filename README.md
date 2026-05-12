@@ -1,6 +1,6 @@
 # SentinelAI
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, and **Phase 4**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, and LangGraph-based orchestration with retries and replanning.
+SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, and **Phase 6**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, and MCP-style tool orchestration.
 
 ## Current Capabilities
 
@@ -15,6 +15,10 @@ SentinelAI is a production-oriented foundation for an autonomous AI web testing 
 - AI test planning with Ollama
 - LangGraph workflow orchestration
 - retry-aware replanning
+- persistent FAISS-backed memory
+- retrieval-augmented planning
+- MCP-style tool registry and modular tool servers
+- tool invocation tracing and MCP metrics
 - centralized logging utilities
 - Docker-ready app scaffold
 
@@ -30,6 +34,8 @@ Current implementation path:
 - `agents/`: planner and deterministic step execution
 - `browser/`: Playwright browser control
 - `reporting/`: artifact and report generation
+- `memory/`: embeddings, vector store, and memory manager
+- `mcp_servers/`: MCP-style registry and tool servers
 - `validation/`: rule-based assertions
 - `sentinelai/`: shared runtime types and test-case schema
 
@@ -67,7 +73,7 @@ pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-This installs the current Python runtime stack, including `playwright`, `requests`, and `langgraph`.
+This installs the current Python runtime stack, including `playwright`, `requests`, `langgraph`, `faiss-cpu`, and `sentence-transformers`.
 
 ## Ollama Setup
 
@@ -125,6 +131,18 @@ Phase 4 LangGraph orchestration with retries:
 python main.py phase4 --url https://example.com --instruction "Test the homepage" --max-retries 2
 ```
 
+Phase 5 LangGraph orchestration with persistent memory:
+
+```powershell
+python main.py phase5 --url https://example.com --instruction "Test the homepage" --max-retries 2
+```
+
+Phase 6 LangGraph orchestration with MCP tool routing:
+
+```powershell
+python main.py phase6 --url https://example.com --instruction "Test the homepage" --max-retries 2
+```
+
 Optional model override:
 
 ```powershell
@@ -145,6 +163,27 @@ Phase 4 writes:
 - `planner/planner_trace.json`
 - `metrics/execution_metrics.json`
 
+Phase 6 additionally writes:
+
+- `graph/tool_trace.json`
+
+Phase 5 also persists local vector memory outside per-run artifacts. By default this lives under `memory_store/` and can be changed with `SENTINELAI_MEMORY_VECTOR_DB_PATH`.
+
+Default memory configuration:
+
+- memory enabled: `true`
+- vector store backend: FAISS
+- default embedding provider: `hashing`
+- optional embedding provider: `sentence_transformers`
+- default retrieval depth: `3`
+
+Default MCP configuration:
+
+- MCP enabled: `true`
+- tool tracing enabled: `true`
+- MCP timeout seconds: `90`
+- enabled tools: `browser,memory,validation`
+
 Phase 3 planner logs include:
 
 - planner prompt
@@ -164,6 +203,4 @@ If you want to use Phase 3 from Docker later, point the container at a reachable
 
 ## What Comes Next
 
-- Phase 5: vector memory
-- Phase 6: MCP tool layer
 - Phase 7: expanded multi-container runtime

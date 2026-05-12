@@ -92,6 +92,56 @@ def build_parser() -> argparse.ArgumentParser:
         help="Launch the browser in headed mode for debugging.",
     )
 
+    phase5 = subparsers.add_parser(
+        "phase5",
+        help="Run the LangGraph workflow with persistent memory retrieval and storage.",
+    )
+    phase5.add_argument("--url", required=True, help="Target URL to test.")
+    phase5.add_argument(
+        "--instruction",
+        required=True,
+        help="Natural language instruction for the workflow planner.",
+    )
+    phase5.add_argument(
+        "--model",
+        help="Override the configured Ollama model for this run.",
+    )
+    phase5.add_argument(
+        "--max-retries",
+        type=int,
+        help="Override the configured workflow retry limit for this run.",
+    )
+    phase5.add_argument(
+        "--headed",
+        action="store_true",
+        help="Launch the browser in headed mode for debugging.",
+    )
+
+    phase6 = subparsers.add_parser(
+        "phase6",
+        help="Run the LangGraph workflow with MCP tool orchestration enabled.",
+    )
+    phase6.add_argument("--url", required=True, help="Target URL to test.")
+    phase6.add_argument(
+        "--instruction",
+        required=True,
+        help="Natural language instruction for the workflow planner.",
+    )
+    phase6.add_argument(
+        "--model",
+        help="Override the configured Ollama model for this run.",
+    )
+    phase6.add_argument(
+        "--max-retries",
+        type=int,
+        help="Override the configured workflow retry limit for this run.",
+    )
+    phase6.add_argument(
+        "--headed",
+        action="store_true",
+        help="Launch the browser in headed mode for debugging.",
+    )
+
     return parser
 
 
@@ -288,6 +338,7 @@ async def run_phase4(
     headed: bool,
     model: str | None,
     max_retries: int | None,
+    phase_name: str = "phase4",
 ) -> dict:
     from agents.graph_workflow import LangGraphWorkflow
 
@@ -298,8 +349,43 @@ async def run_phase4(
         instruction=instruction,
         model=model,
         max_retries=max_retries,
+        phase_name=phase_name,
     )
     return result.to_summary()
+
+
+async def run_phase5(
+    url: str,
+    instruction: str,
+    headed: bool,
+    model: str | None,
+    max_retries: int | None,
+) -> dict:
+    return await run_phase4(
+        url=url,
+        instruction=instruction,
+        headed=headed,
+        model=model,
+        max_retries=max_retries,
+        phase_name="phase5",
+    )
+
+
+async def run_phase6(
+    url: str,
+    instruction: str,
+    headed: bool,
+    model: str | None,
+    max_retries: int | None,
+) -> dict:
+    return await run_phase4(
+        url=url,
+        instruction=instruction,
+        headed=headed,
+        model=model,
+        max_retries=max_retries,
+        phase_name="phase6",
+    )
 
 
 def main() -> None:
@@ -333,6 +419,26 @@ def main() -> None:
     elif args.command == "phase4":
         summary = asyncio.run(
             run_phase4(
+                url=args.url,
+                instruction=args.instruction,
+                headed=args.headed,
+                model=args.model,
+                max_retries=args.max_retries,
+            )
+        )
+    elif args.command == "phase5":
+        summary = asyncio.run(
+            run_phase5(
+                url=args.url,
+                instruction=args.instruction,
+                headed=args.headed,
+                model=args.model,
+                max_retries=args.max_retries,
+            )
+        )
+    elif args.command == "phase6":
+        summary = asyncio.run(
+            run_phase6(
                 url=args.url,
                 instruction=args.instruction,
                 headed=args.headed,

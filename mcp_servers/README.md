@@ -1,10 +1,11 @@
 # MCP Servers
 
-This package will hold modular tool servers used by the LangGraph workflow.
+This package holds the Phase 6 MCP-style tool layer used by SentinelAI.
 
-Planned servers:
+Current servers:
 
-- browser server: `open_url`, `click`, `type`, `get_dom`
-- screenshot server: `take_screenshot`, `compare_images`
-- memory server: `store_memory`, `retrieve_memory`
+- browser server: `capture_initial_state`, `run_test_case`, `open_url`, `click`, `type`, `wait`, `extract_dom`, `screenshot`
+- memory server: `retrieve_similar`, `store_execution`, `memory_stats`
+- validation server: `validate_assertions`, `summarize_validation`, `extract_failure_reason`
 
+The orchestration layer talks to these servers through `MCPToolRegistry`, which keeps tool lookups and execution loosely coupled from the LangGraph nodes.

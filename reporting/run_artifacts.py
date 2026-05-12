@@ -143,6 +143,11 @@ class RunArtifactManager:
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return path
 
+    def write_tool_trace(self, run_artifacts: RunArtifacts, payload: dict) -> Path:
+        path = run_artifacts.graph_dir / "tool_trace.json"
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return path
+
     def write_execution_metrics(self, run_artifacts: RunArtifacts, payload: dict) -> Path:
         path = run_artifacts.metrics_dir / "execution_metrics.json"
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -364,6 +369,10 @@ class RunArtifactManager:
                 "events": [],
                 "status": "pending",
             },
+            graph_dir / "tool_trace.json": {
+                "events": [],
+                "status": "pending",
+            },
             metrics_dir / "execution_metrics.json": {
                 "retry_count": 0,
                 "node_timings_ms": {},
@@ -553,6 +562,9 @@ class RunArtifactManager:
         metrics_relative = self._relative_artifact_path(
             run_artifacts, workflow.get("metrics_path")
         )
+        tool_trace_relative = self._relative_artifact_path(
+            run_artifacts, workflow.get("tool_trace_path")
+        )
         history_rows = []
         for item in workflow.get("instruction_history", []):
             history_rows.append(
@@ -582,11 +594,23 @@ class RunArtifactManager:
             f"<div class='card'><strong>Retry Count</strong><br />{escape(str(workflow.get('retry_count')))}</div>"
             f"<div class='card'><strong>Max Retries</strong><br />{escape(str(workflow.get('max_retries')))}</div>"
             f"<div class='card'><strong>Planner Attempts</strong><br />{escape(str(workflow.get('planner_attempt_count')))}</div>"
+            f"<div class='card'><strong>Memory Enabled</strong><br />{escape(str(workflow.get('memory_enabled')))}</div>"
+            f"<div class='card'><strong>Memory Hits</strong><br />{escape(str(workflow.get('memory_hits')))}</div>"
+            f"<div class='card'><strong>Retrieval Count</strong><br />{escape(str(workflow.get('retrieval_count')))}</div>"
+            f"<div class='card'><strong>Memory Store</strong><br />{escape(str(workflow.get('memory_store_status')))}</div>"
+            f"<div class='card'><strong>MCP Enabled</strong><br />{escape(str(workflow.get('mcp_enabled')))}</div>"
+            f"<div class='card'><strong>Tool Tracing</strong><br />{escape(str(workflow.get('tool_tracing_enabled')))}</div>"
+            f"<div class='card'><strong>Tool Invocations</strong><br />{escape(str(workflow.get('tool_invocation_count')))}</div>"
+            f"<div class='card'><strong>Tool Failures</strong><br />{escape(str(workflow.get('tool_failure_count')))}</div>"
             f"<div class='card'><strong>Graph Trace</strong><br />{self._artifact_link(graph_trace_relative)}</div>"
+            f"<div class='card'><strong>Tool Trace</strong><br />{self._artifact_link(tool_trace_relative)}</div>"
             f"<div class='card'><strong>Planner Trace</strong><br />{self._artifact_link(planner_trace_relative)}</div>"
             f"<div class='card'><strong>Metrics</strong><br />{self._artifact_link(metrics_relative)}</div>"
             "</div>"
             f"<div class='card' style='margin-top: 12px;'><strong>Workflow Failure</strong><br />{escape(str(workflow.get('failure_reason')))}</div>"
+            f"<div class='card' style='margin-top: 12px;'><strong>Memory Bootstrap</strong><br />{escape(str(workflow.get('memory_bootstrap_error')))}</div>"
+            f"<div class='card' style='margin-top: 12px;'><strong>Enabled Tools</strong><br />{escape(str(workflow.get('enabled_tools')))}</div>"
+            f"<div class='card' style='margin-top: 12px;'><strong>MCP Bootstrap</strong><br />{escape(str(workflow.get('mcp_bootstrap_error')))}</div>"
             + history_table
             + "</section>"
         )

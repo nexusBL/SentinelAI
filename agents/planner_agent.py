@@ -70,10 +70,15 @@ class PlannerAgent:
         instruction: str,
         logs_dir: Path,
         model: str | None = None,
+        memory_context: str | None = None,
     ) -> PlannerAgentResult:
         resolved_model = model or self.ollama_client.settings.model
         system_prompt = self._build_system_prompt()
-        base_prompt = self._build_user_prompt(url=url, instruction=instruction)
+        base_prompt = self._build_user_prompt(
+            url=url,
+            instruction=instruction,
+            memory_context=memory_context,
+        )
         prompt_path = logs_dir / "planner_prompt.txt"
         prompt_path.write_text(
             f"[system]\n{system_prompt}\n\n[user]\n{base_prompt}\n",
@@ -206,8 +211,14 @@ class PlannerAgent:
             "Only create assertions you can justify from the instruction."
         )
 
-    def _build_user_prompt(self, *, url: str, instruction: str) -> str:
-        return (
+    def _build_user_prompt(
+        self,
+        *,
+        url: str,
+        instruction: str,
+        memory_context: str | None = None,
+    ) -> str:
+        prompt = (
             "Generate a web test plan for this target.\n"
             f"URL: {url}\n"
             f"Instruction: {instruction}\n"
@@ -231,6 +242,15 @@ class PlannerAgent:
             "  ]\n"
             "}\n"
             "Return JSON only."
+        )
+        if not memory_context:
+            return prompt
+        return (
+            f"{prompt}\n"
+            "Relevant memory from previous runs:\n"
+            f"{memory_context}\n"
+            "Use this memory to avoid repeating past failures and to prefer strategies "
+            "that previously succeeded when they fit the current page."
         )
 
     def _retry_prompt(self, *, base_prompt: str, previous_error: str | None) -> str:
