@@ -1,6 +1,7 @@
 # SentinelAI
+[![CI](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml/badge.svg)](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml)
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, **Phase 6**, and **Phase 7**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, and automated quality gates.
+SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, **Phase 6**, **Phase 7**, and **Phase 8**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, automated quality gates, and GitHub Actions CI.
 
 ## Current Capabilities
 
@@ -20,6 +21,7 @@ SentinelAI is a production-oriented foundation for an autonomous AI web testing 
 - MCP-style tool registry and modular tool servers
 - tool invocation tracing and MCP metrics
 - centralized logging utilities
+- GitHub Actions quality pipeline
 - Docker-ready app scaffold
 
 ## Architecture Direction
@@ -230,6 +232,44 @@ What the Phase 7 checks cover:
 
 The unit test suite is designed to run without a real Ollama service and without internet access. Planner tests use mock responses, and the smoke test only checks initialization paths.
 
+## CI Pipeline
+
+GitHub Actions now runs the SentinelAI quality pipeline on every push to `main` and every pull request targeting `main`.
+
+The workflow lives in [.github/workflows/ci.yml](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/.github/workflows/ci.yml:1) and currently runs:
+
+- dependency installation from `requirements.txt`
+- Python compile checks
+- `python -m pytest`
+- `python scripts/smoke_test.py`
+- `python scripts/dev_check.py` as a parity check against the local developer gate
+
+CI is intentionally lightweight and mock-friendly:
+
+- it does not require a real Ollama service
+- it does not download Playwright browsers by default
+- it uses safe CI-friendly environment defaults
+- it does not depend on local `memory_store/`, `artifacts/runs/`, or `.venv/`
+
+If CI fails, the fastest local reproduction path is:
+
+```powershell
+python scripts/dev_check.py
+```
+
+If you need more detail, run the individual steps locally:
+
+```powershell
+python -m compileall main.py agents ai browser config memory mcp_servers reporting scripts sentinelai tests validation
+python -m pytest
+python scripts/smoke_test.py
+```
+
+Known warning handling:
+
+- the project filters only the known harmless FAISS/SWIG deprecation warnings in [pytest.ini](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/pytest.ini:1)
+- other warnings still surface normally so the test output stays useful
+
 ## Docker
 
 The Docker scaffold currently runs the deterministic app container workflow:
@@ -242,4 +282,4 @@ If you want to use Phase 3 from Docker later, point the container at a reachable
 
 ## What Comes Next
 
-- Phase 8: expanded multi-container runtime
+- Phase 9: expanded multi-container runtime

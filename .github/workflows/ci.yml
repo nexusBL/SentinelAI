@@ -1,0 +1,51 @@
+name: CI
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      SENTINELAI_MEMORY_ENABLED: "false"
+      SENTINELAI_MCP_ENABLED: "false"
+      SENTINELAI_ARTIFACTS_DIR: ".ci_artifacts"
+      SENTINELAI_MEMORY_VECTOR_DB_PATH: ".ci_memory_store"
+      SENTINELAI_OLLAMA_ENDPOINT: "http://localhost:11434/api/generate"
+      SENTINELAI_OLLAMA_MODEL: "llama3"
+      SENTINELAI_MCP_TOOL_TRACING_ENABLED: "false"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Compile source tree
+        run: |
+          python -m compileall main.py agents ai browser config memory mcp_servers reporting scripts sentinelai tests validation
+
+      - name: Run pytest suite
+        run: |
+          python -m pytest
+
+      - name: Run smoke test
+        run: |
+          python scripts/smoke_test.py
+
+      - name: Run local-equivalent dev gate
+        run: |
+          python scripts/dev_check.py

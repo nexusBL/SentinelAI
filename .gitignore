@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.ci_artifacts/
+.ci_memory_store/
 
 artifacts/runs/
 playwright-report/
