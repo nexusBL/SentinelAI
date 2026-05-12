@@ -1,6 +1,6 @@
 # SentinelAI
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, and **Phase 6**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, and MCP-style tool orchestration.
+SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, **Phase 6**, and **Phase 7**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, and automated quality gates.
 
 ## Current Capabilities
 
@@ -74,6 +74,11 @@ python -m playwright install chromium
 ```
 
 This installs the current Python runtime stack, including `playwright`, `requests`, `langgraph`, `faiss-cpu`, and `sentence-transformers`.
+
+Phase 7 also adds the local developer test stack:
+
+- `pytest`
+- `pytest-asyncio`
 
 ## Ollama Setup
 
@@ -191,6 +196,40 @@ Phase 3 planner logs include:
 - parsed JSON per valid parse attempt
 - final normalized test plan
 
+## Testing And Quality Gates
+
+Run the automated test suite:
+
+```powershell
+python -m pytest
+```
+
+Run the lightweight smoke test:
+
+```powershell
+python scripts/smoke_test.py
+```
+
+Run the full local developer gate before pushing:
+
+```powershell
+python scripts/dev_check.py
+```
+
+What the Phase 7 checks cover:
+
+- `tests/test_config.py`: settings defaults and environment overrides
+- `tests/test_test_case_schema.py`: testcase loading, schema validation, and serialization
+- `tests/test_assertions.py`: deterministic validation behavior and failure messages
+- `tests/test_planner_agent.py`: planner retries, schema rejection, metadata, and memory-context injection
+- `tests/test_memory_manager.py`: FAISS persistence, retrieval, disabled mode, and empty-store safety
+- `tests/test_mcp_registry.py` and `tests/test_mcp_servers.py`: MCP registry, tool interfaces, structured errors, and timeout handling
+- `tests/test_graph_workflow.py`: success, retry, max-retry stop, memory ordering, and MCP-enabled or disabled graph behavior
+- `tests/test_reporting.py`: report and trace artifact writing
+- `tests/test_backward_compatibility.py`: phase command availability, help output, and import safety
+
+The unit test suite is designed to run without a real Ollama service and without internet access. Planner tests use mock responses, and the smoke test only checks initialization paths.
+
 ## Docker
 
 The Docker scaffold currently runs the deterministic app container workflow:
@@ -203,4 +242,4 @@ If you want to use Phase 3 from Docker later, point the container at a reachable
 
 ## What Comes Next
 
-- Phase 7: expanded multi-container runtime
+- Phase 8: expanded multi-container runtime
