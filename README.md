@@ -270,15 +270,25 @@ Today it runs a deterministic sample workflow. For LLM-backed flows, point the c
 
 ## Screenshots
 
-Screenshot placeholders and suggested filenames live in [docs/screenshots/README.md](docs/screenshots/README.md).
+These screenshots were captured locally against safe `example.com` demo data and SentinelAI artifact pages.
 
-Recommended showcase captures:
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
-- dashboard overview
-- new run page
-- run detail page
-- reports page
-- graph trace section
+![New Run Page](docs/screenshots/new-run-page.png)
+
+![Run Detail Page](docs/screenshots/run-detail-page.png)
+
+![Reports Page](docs/screenshots/reports-page.png)
+
+![Graph And Tool Trace Section](docs/screenshots/graph-tool-trace-section.png)
+
+Additional dashboard screenshots are stored in [docs/screenshots](docs/screenshots/README.md):
+
+- runs page
+- memory page
+- tools page
+- metrics page
+- settings page
 
 ## Advanced Aspects That Make This Project Stand Out
 

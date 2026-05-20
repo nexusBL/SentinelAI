@@ -118,6 +118,19 @@ After a successful Phase 6 run you should have:
 - `artifacts/runs/<run_id>/planner/planner_trace.json`
 - `artifacts/runs/<run_id>/metrics/execution_metrics.json`
 
+## Suggested Demo Recording Flow
+
+If you want to record a short walkthrough for GitHub, LinkedIn, or an interview:
+
+1. Open the dashboard overview page and show recent run metrics.
+2. Navigate to the New Run page and highlight the Phase 6 execution form.
+3. Submit a safe `example.com` run.
+4. Open the Runs page and show the new entry in history.
+5. Open the Run Detail page and point out screenshots, report links, and status cards.
+6. Expand the graph trace and MCP tool trace sections.
+7. Open the Reports page to show HTML and JSON outputs.
+8. Finish on the Metrics or Memory page to show that SentinelAI is more than a simple browser script.
+
 ## Talking Points For Interviews
 
 - SentinelAI separates planning, execution, validation, reporting, memory, and tooling into replaceable layers.
