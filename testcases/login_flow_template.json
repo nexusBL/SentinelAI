@@ -1,0 +1,56 @@
+{
+  "name": "Generic Login Flow Template",
+  "description": "A safe template for adapting SentinelAI to a login flow. Replace selectors and placeholder values for your own application.",
+  "target_url": "https://your-app.example/login",
+  "steps": [
+    {
+      "action": "navigate",
+      "value": "https://your-app.example/login",
+      "description": "Open the login page"
+    },
+    {
+      "action": "wait",
+      "value": 750,
+      "description": "Wait for the form to become interactive"
+    },
+    {
+      "action": "type",
+      "selector": "#username",
+      "value": "<USERNAME_PLACEHOLDER>",
+      "description": "Enter the username placeholder"
+    },
+    {
+      "action": "type",
+      "selector": "#password",
+      "value": "<PASSWORD_PLACEHOLDER>",
+      "description": "Enter the password placeholder"
+    },
+    {
+      "action": "click",
+      "selector": "button[type='submit']",
+      "description": "Submit the login form"
+    },
+    {
+      "action": "wait",
+      "value": 1000,
+      "description": "Wait for post-login navigation"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "url_contains",
+      "value": "/dashboard",
+      "description": "Validate that login redirects to the dashboard area"
+    },
+    {
+      "type": "element_exists",
+      "selector": "[data-testid='user-menu']",
+      "description": "Validate that a logged-in user control is visible"
+    },
+    {
+      "type": "text_exists",
+      "value": "Welcome",
+      "description": "Validate that a welcome message is present"
+    }
+  ]
+}

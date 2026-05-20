@@ -1,333 +1,301 @@
 # SentinelAI
 [![CI](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml/badge.svg)](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml)
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1** through **Phase 9**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, automated quality gates, GitHub Actions CI, and an optional FastAPI dashboard for local product-style visibility.
+SentinelAI is a production-style autonomous web testing platform that turns natural-language instructions into executable browser tests, validates outcomes, stores memory from prior runs, and exposes the whole system through both a CLI and a polished FastAPI dashboard.
 
-## Current Capabilities
+This project is designed to showcase advanced AI systems engineering, full-stack architecture, and product-minded developer tooling in one repository. It combines local LLM planning, graph-based orchestration, browser automation, persistent vector memory, MCP-style tools, observability, CI quality gates, and a demo-friendly UI.
 
-- Playwright browser automation
-- before/after screenshots
-- per-step screenshots
-- DOM snapshot capture
-- JSON + HTML reports
-- structured JSON test cases
-- deterministic step execution
-- rule-based assertions
-- AI test planning with Ollama
-- LangGraph workflow orchestration
-- retry-aware replanning
-- persistent FAISS-backed memory
-- retrieval-augmented planning
-- MCP-style tool registry and modular tool servers
-- tool invocation tracing and MCP metrics
-- centralized logging utilities
-- GitHub Actions quality pipeline
-- FastAPI multi-page dashboard with artifact browsing
-- Docker-ready app scaffold
+## Why SentinelAI Exists
 
-## Architecture Direction
+Traditional end-to-end test automation often depends on brittle hand-authored scripts that become expensive to maintain as products evolve. SentinelAI explores a different approach:
 
-Target workflow for later phases:
+- accept a URL and natural-language instruction
+- plan test steps automatically with a local LLM
+- execute and validate those steps through a reusable workflow
+- learn from prior runs using persistent memory
+- expose artifacts, traces, and metrics through a product-style dashboard
 
-`START -> Planner -> Memory Read -> Executor -> Screenshot -> Validator -> Memory Write -> Reporter -> END`
+The result is a strong portfolio project for AI systems, platform engineering, automation, and product-facing developer experience.
 
-Current implementation path:
+## Key Features
 
-- `ai/`: Ollama HTTP client
-- `agents/`: planner and deterministic step execution
-- `browser/`: Playwright browser control
-- `reporting/`: artifact and report generation
-- `memory/`: embeddings, vector store, and memory manager
-- `mcp_servers/`: MCP-style registry and tool servers
-- `dashboard/`: optional FastAPI UI, templates, static assets, and artifact viewers
-- `validation/`: rule-based assertions
-- `sentinelai/`: shared runtime types and test-case schema
+- Playwright-based browser automation with screenshots and DOM capture
+- deterministic JSON test execution and rule-based validation
+- Ollama-powered planning with strict JSON output enforcement
+- LangGraph orchestration with retry and replan logic
+- persistent FAISS memory with retrieval-augmented planning
+- MCP-style browser, memory, and validation tool servers
+- JSON, HTML, graph trace, planner trace, tool trace, and metrics artifacts
+- FastAPI dashboard with multi-page artifact browsing and run execution
+- pytest suite, smoke test, local dev gate, and GitHub Actions CI
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U[User Instruction] --> UI[CLI or FastAPI Dashboard]
+    UI --> G[LangGraph Workflow]
+    G --> MR[Memory Retrieval]
+    MR --> P[Ollama Planner]
+    P --> MCP[MCP Tool Layer]
+    MCP --> E[Playwright Executor]
+    E --> V[Validation Engine]
+    V --> R[Reports and Artifacts]
+    V --> MW[Memory Storage]
+    R --> D[Dashboard Artifact Views]
+```
+
+SentinelAI keeps these layers loosely coupled:
+
+- `dashboard/` is optional and sits on top of the existing runtime
+- `agents/` owns planning and orchestration wrappers, not low-level browser code
+- `browser/` handles execution primitives and runtime models
+- `validation/` stays deterministic and independent from the planner
+- `memory/` is modular and replaceable behind `MemoryManager`
+- `mcp_servers/` exposes system capabilities through standardized tool interfaces
+
+More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Feature Matrix
+
+| Phase | Feature | Status |
+|---|---|---|
+| Phase 1 | Playwright automation, screenshots, DOM capture, artifacts, reports | Complete |
+| Phase 2 | Structured test execution and validation engine | Complete |
+| Phase 3 | Ollama-based AI planner | Complete |
+| Phase 4 | LangGraph orchestration with retry and replan flow | Complete |
+| Phase 5 | Persistent FAISS memory with planner context injection | Complete |
+| Phase 6 | MCP-style browser, memory, and validation tools | Complete |
+| Phase 7 | Pytest suite, smoke test, and local quality gate | Complete |
+| Phase 8 | GitHub Actions CI pipeline | Complete |
+| Phase 9 | Optional FastAPI multi-page dashboard | Complete |
+| Phase 10 | Final documentation, demo assets, and GitHub packaging polish | Complete |
 
 ## Repository Layout
 
 ```text
 SentinelAI/
-|-- ai/
-|-- agents/
-|-- browser/
-|-- config/
-|-- dashboard/
-|-- docker/
-|-- mcp_servers/
-|-- memory/
-|-- reporting/
-|-- sentinelai/
-|-- testcases/
-|-- validation/
-`-- main.py
+|-- ai/                 # Ollama HTTP client
+|-- agents/             # Planner and LangGraph orchestration
+|-- browser/            # Playwright execution and browser result models
+|-- config/             # Environment-driven runtime settings
+|-- dashboard/          # Optional FastAPI dashboard, templates, and static assets
+|-- docker/             # Dockerfile and compose setup
+|-- docs/               # Architecture, demo, troubleshooting, and screenshot placeholders
+|-- mcp_servers/        # MCP-style tool interfaces and registry
+|-- memory/             # Embeddings, vector store, and memory manager
+|-- reporting/          # Artifact and report generation
+|-- sentinelai/         # Shared runtime helpers and test case schema
+|-- testcases/          # Example deterministic test cases and templates
+|-- tests/              # Unit and integration-style tests
+|-- validation/         # Deterministic assertion engine
+`-- main.py             # CLI entrypoint for Phases 1 through 6
 ```
 
-## Python Setup
+## Quick Start
 
-1. Create and activate the virtual environment:
+### 1. Python Setup
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-```
-
-2. Install Python dependencies inside `.venv`:
-
-```powershell
 pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-This installs the current Python runtime stack, including `playwright`, `requests`, `langgraph`, `faiss-cpu`, and `sentence-transformers`.
+### 2. Ollama Setup
 
-Phase 7 also adds the local developer test stack:
-
-- `pytest`
-- `pytest-asyncio`
-
-## Ollama Setup
-
-Ollama runs as a separate system service. It is **not** installed inside the Python virtual environment.
-
-1. Install Ollama from:
-
-```text
-https://ollama.com
-```
-
-2. Start the Ollama service:
+Ollama runs outside the Python environment as a local service.
 
 ```bash
 ollama serve
-```
-
-3. Pull the default model:
-
-```bash
 ollama pull llama3
 ```
 
-Default Ollama endpoint used by SentinelAI:
+Default endpoint:
 
 ```text
 http://localhost:11434/api/generate
 ```
 
-Optional environment variables are shown in [.env.example](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/.env.example:1).
+Configuration defaults and overrides are documented in [.env.example](.env.example).
 
-## Running SentinelAI
+## CLI Commands
 
-Phase 1 baseline navigation:
-
-```powershell
-python main.py phase1 --url https://example.com --instruction "Open the landing page and capture a baseline."
-```
-
-Phase 2 deterministic JSON testcase:
-
-```powershell
+```bash
+python main.py phase1 --url https://example.com
 python main.py phase2 --test testcases/sample_test.json
+python main.py phase3 --url https://example.com --instruction "test homepage"
+python main.py phase4 --url https://example.com --instruction "test homepage"
+python main.py phase5 --url https://example.com --instruction "test homepage"
+python main.py phase6 --url https://example.com --instruction "test homepage"
+uvicorn dashboard.app:app --reload
+python -m pytest
+python scripts/dev_check.py
 ```
 
-Phase 3 natural-language planning with Ollama:
+Recommended Phase 6 example:
 
-```powershell
-python main.py phase3 --url https://example.com --instruction "Open the homepage and verify the title contains Example Domain"
+```bash
+python main.py phase6 --url https://example.com --instruction "Open the homepage, confirm the title, and validate the main heading."
 ```
-
-Phase 4 LangGraph orchestration with retries:
-
-```powershell
-python main.py phase4 --url https://example.com --instruction "Test the homepage" --max-retries 2
-```
-
-Phase 5 LangGraph orchestration with persistent memory:
-
-```powershell
-python main.py phase5 --url https://example.com --instruction "Test the homepage" --max-retries 2
-```
-
-Phase 6 LangGraph orchestration with MCP tool routing:
-
-```powershell
-python main.py phase6 --url https://example.com --instruction "Test the homepage" --max-retries 2
-```
-
-Optional model override:
-
-```powershell
-python main.py phase3 --url https://example.com --instruction "test homepage" --model mistral
-```
-
-Artifacts are written under `artifacts/runs/<run_id>/`.
-
-Each run now pre-creates orchestration-ready subdirectories for future observability and reproducibility work:
-
-- `graph/`
-- `planner/`
-- `metrics/`
-
-Phase 4 writes:
-
-- `graph/graph_trace.json`
-- `planner/planner_trace.json`
-- `metrics/execution_metrics.json`
-
-Phase 6 additionally writes:
-
-- `graph/tool_trace.json`
-
-Phase 5 also persists local vector memory outside per-run artifacts. By default this lives under `memory_store/` and can be changed with `SENTINELAI_MEMORY_VECTOR_DB_PATH`.
-
-Default memory configuration:
-
-- memory enabled: `true`
-- vector store backend: FAISS
-- default embedding provider: `hashing`
-- optional embedding provider: `sentence_transformers`
-- default retrieval depth: `3`
-
-Default MCP configuration:
-
-- MCP enabled: `true`
-- tool tracing enabled: `true`
-- MCP timeout seconds: `90`
-- enabled tools: `browser,memory,validation`
-
-Phase 3 planner logs include:
-
-- planner prompt
-- raw LLM responses per attempt
-- parsed JSON per valid parse attempt
-- final normalized test plan
 
 ## Dashboard
 
-Phase 9 adds an optional local-first dashboard built with FastAPI, Jinja2 templates, custom CSS, and vanilla JavaScript. It does not replace the CLI or backend workflows; it wraps the existing system so you can demo runs, browse artifacts, and inspect traces in a more product-like interface.
+Phase 9 adds an optional local-first dashboard built with:
 
-Run the dashboard locally:
+- FastAPI
+- Jinja2 templates
+- custom HTML and CSS
+- vanilla JavaScript
 
-```powershell
+Run it locally:
+
+```bash
 uvicorn dashboard.app:app --reload
 ```
 
-Primary routes:
+Open:
 
-- `/`: overview cards, recent runs, system status
-- `/new-run`: polished run form for Phase 3 through Phase 6 workflows
-- `/runs`: searchable run history
-- `/runs/{run_id}`: run detail, screenshots, traces, metrics, and report links
-- `/reports`: generated HTML and JSON reports
-- `/memory`: memory status, recent writes, and retrieval activity
-- `/tools`: MCP tool summary and recent tool invocations
-- `/metrics`: aggregate workflow metrics
-- `/settings`: read-only runtime configuration
+- `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/new-run`
+- `http://127.0.0.1:8000/runs`
+- `http://127.0.0.1:8000/reports`
+- `http://127.0.0.1:8000/memory`
+- `http://127.0.0.1:8000/tools`
+- `http://127.0.0.1:8000/metrics`
+- `http://127.0.0.1:8000/settings`
 
-The dashboard is:
+The dashboard remains optional. The CLI is still the primary backend interface, and no Streamlit is used.
 
-- optional
-- local-first
-- safe on missing artifacts
-- separate from the planner, executor, validation, memory, MCP, and CLI layers
+## Demo Flow
 
-No Streamlit is used. The existing CLI remains fully supported.
+This is the fastest showcase path for GitHub visitors or interview demos:
 
-Screenshot placeholder section:
+1. Start Ollama:
 
-- Add product screenshots or demo captures here for GitHub presentation once you have a preferred local run history to showcase.
+```bash
+ollama serve
+```
 
-## Testing And Quality Gates
+2. Pull the default model:
 
-Before pushing changes, run the same core checks locally that CI runs:
+```bash
+ollama pull llama3
+```
 
-```powershell
+3. Run a Phase 6 CLI workflow:
+
+```bash
+python main.py phase6 --url https://example.com --instruction "Test the homepage and validate the title."
+```
+
+4. Launch the dashboard:
+
+```bash
+uvicorn dashboard.app:app --reload
+```
+
+5. Open the browser UI at `http://127.0.0.1:8000/new-run` and submit a Phase 6 run.
+
+6. Open the generated run detail page to inspect screenshots, report links, graph trace, planner trace, metrics, and failure or pass state.
+
+7. Open the Reports page to browse HTML and JSON reports.
+
+8. Open the Memory and Tools pages to show retrieval hits, stored memory behavior, MCP tool traces, and metrics.
+
+There is a longer presenter-oriented script in [docs/DEMO.md](docs/DEMO.md).
+
+## Sample Test Cases
+
+The repository ships with safe, generic examples:
+
+- [testcases/sample_test.json](testcases/sample_test.json): passing example against `example.com`
+- [testcases/failing_sample_test.json](testcases/failing_sample_test.json): intentionally failing case for demoing negative paths
+- [testcases/login_flow_template.json](testcases/login_flow_template.json): placeholder login workflow template with non-secret example selectors and values
+
+## Artifacts Generated
+
+SentinelAI writes run artifacts under `artifacts/runs/<run_id>/`.
+
+Common outputs include:
+
+- `reports/report.json`
+- `reports/report.html`
+- `graph/graph_trace.json`
+- `graph/tool_trace.json`
+- `planner/planner_trace.json`
+- `metrics/execution_metrics.json`
+- `screenshots/*.png`
+- `logs/page_dom.html`
+- planner raw response and normalized test plan files
+
+Persistent memory is stored separately under `memory_store/` by default.
+
+## Testing and Quality Gates
+
+Local verification:
+
+```bash
 python -m compileall .
 python -m pytest
 python scripts/smoke_test.py
 python scripts/dev_check.py
 ```
 
-Run the automated test suite:
+What the quality system covers:
 
-```powershell
-python -m pytest
-```
+- settings and environment overrides
+- testcase schema validation
+- deterministic assertions
+- planner retries and schema enforcement
+- memory persistence and retrieval
+- MCP registry and tool-server behavior
+- LangGraph workflow success and retry paths
+- reporting and artifact writing
+- dashboard route and utility safety
+- backward compatibility of the CLI
 
-Run the lightweight smoke test:
-
-```powershell
-python scripts/smoke_test.py
-```
-
-Run the full local developer gate before pushing:
-
-```powershell
-python scripts/dev_check.py
-```
-
-What the Phase 7 checks cover:
-
-- `tests/test_config.py`: settings defaults and environment overrides
-- `tests/test_test_case_schema.py`: testcase loading, schema validation, and serialization
-- `tests/test_assertions.py`: deterministic validation behavior and failure messages
-- `tests/test_planner_agent.py`: planner retries, schema rejection, metadata, and memory-context injection
-- `tests/test_memory_manager.py`: FAISS persistence, retrieval, disabled mode, and empty-store safety
-- `tests/test_mcp_registry.py` and `tests/test_mcp_servers.py`: MCP registry, tool interfaces, structured errors, and timeout handling
-- `tests/test_graph_workflow.py`: success, retry, max-retry stop, memory ordering, and MCP-enabled or disabled graph behavior
-- `tests/test_reporting.py`: report and trace artifact writing
-- `tests/test_backward_compatibility.py`: phase command availability, help output, and import safety
-- `tests/test_dashboard_utils.py` and `tests/test_dashboard_routes.py`: safe artifact loading, empty-state rendering, run-detail APIs, and dashboard route behavior without real Ollama or browser execution
-
-The unit test suite is designed to run without a real Ollama service and without internet access. Planner tests use mock responses, and the smoke test only checks initialization paths.
-
-## CI Pipeline
-
-GitHub Actions now runs the SentinelAI quality pipeline on every push to `main` and every pull request targeting `main`.
-
-The workflow lives in [.github/workflows/ci.yml](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/.github/workflows/ci.yml:1) and currently runs:
-
-- dependency installation from `requirements.txt`
-- Python compile checks
-- `python -m pytest`
-- `python scripts/smoke_test.py`
-- `python scripts/dev_check.py` as a parity check against the local developer gate
-
-CI is intentionally lightweight and mock-friendly:
-
-- it does not require a real Ollama service
-- it does not download Playwright browsers by default
-- it uses safe CI-friendly environment defaults
-- it does not depend on local `memory_store/`, `artifacts/runs/`, or `.venv/`
-
-If CI fails, the fastest local reproduction path is:
-
-```powershell
-python scripts/dev_check.py
-```
-
-If you need more detail, run the individual steps locally:
-
-```powershell
-python -m compileall .
-python -m pytest
-python scripts/smoke_test.py
-```
-
-Known warning handling:
-
-- the project filters only the known harmless FAISS/SWIG deprecation warnings in [pytest.ini](/c:/Users/l670b/OneDrive/Desktop/SentinelAI/pytest.ini:1)
-- other warnings still surface normally so the test output stays useful
+GitHub Actions runs the same core checks on `push` and `pull_request` to `main`.
 
 ## Docker
 
-The Docker scaffold currently runs the deterministic app container workflow:
+The repository includes a lightweight Docker scaffold:
 
-```powershell
+```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-If you want to use Phase 3 from Docker later, point the container at a reachable Ollama service endpoint.
+Today it runs a deterministic sample workflow. For LLM-backed flows, point the container at a reachable Ollama service.
 
-## What Comes Next
+## Screenshots
 
-- Phase 10+: richer productization layers such as hosted UI, deployment workflows, integration tests, or comparative report tooling
+Screenshot placeholders and suggested filenames live in [docs/screenshots/README.md](docs/screenshots/README.md).
+
+Recommended showcase captures:
+
+- dashboard overview
+- new run page
+- run detail page
+- reports page
+- graph trace section
+
+## Advanced Aspects That Make This Project Stand Out
+
+- local LLM planning with strict JSON plan validation
+- graph-based orchestration rather than a linear script runner
+- persistent vector memory with retrieval-augmented planning
+- MCP-style tool abstraction for browser, memory, and validation capabilities
+- product-style dashboard layered cleanly over the CLI/runtime
+- offline-friendly tests, smoke checks, and GitHub CI
+- modular architecture designed for future hosted UI, additional tools, or cloud execution
+
+## Additional Docs
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/DEMO.md](docs/DEMO.md)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+## License / Usage
+
+This repository is structured as a portfolio-quality engineering project and local experimentation environment. Review the code, adapt the templates, and extend the architecture to match your own product or testing workflows.

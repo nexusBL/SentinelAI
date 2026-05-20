@@ -26,7 +26,11 @@ def main() -> int:
         settings.memory.vector_db_path = temp_root / "memory_store"
 
         sample_test_path = repo_root / "testcases" / "sample_test.json"
+        failing_test_path = repo_root / "testcases" / "failing_sample_test.json"
+        login_template_path = repo_root / "testcases" / "login_flow_template.json"
         test_case = load_test_case(sample_test_path)
+        failing_test_case = load_test_case(failing_test_path)
+        login_template = load_test_case(login_template_path)
         memory_manager = MemoryManager(settings.memory)
         registry = MCPToolRegistry(
             enabled=settings.mcp.enabled,
@@ -40,6 +44,8 @@ def main() -> int:
             "settings_loaded": True,
             "sample_testcase_name": test_case.name,
             "sample_testcase_steps": len(test_case.steps),
+            "failing_testcase_name": failing_test_case.name,
+            "login_template_name": login_template.name,
             "memory_enabled": memory_manager.enabled,
             "mcp_registry_enabled": registry.enabled,
             "graph_compiled": workflow.graph is not None,

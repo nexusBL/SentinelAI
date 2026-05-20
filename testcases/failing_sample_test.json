@@ -1,0 +1,24 @@
+{
+  "name": "Intentional Failure Example",
+  "description": "A safe negative-path testcase for demonstrating SentinelAI failure reporting.",
+  "target_url": "https://example.com",
+  "steps": [
+    {
+      "action": "navigate",
+      "value": "https://example.com",
+      "description": "Open the example homepage"
+    },
+    {
+      "action": "wait",
+      "value": 500,
+      "description": "Allow the page to settle briefly"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "text_exists",
+      "value": "This text should never appear",
+      "description": "Intentionally fail by looking for content that does not exist"
+    }
+  ]
+}
