@@ -92,7 +92,14 @@ def temp_settings(tmp_path: Path):
     settings = load_settings(project_root=tmp_path)
     settings.storage.artifacts_root = tmp_path / "artifacts"
     settings.storage.runs_root = settings.storage.artifacts_root / "runs"
+    settings.memory.enabled = True
     settings.memory.vector_db_path = tmp_path / "memory_store"
+    settings.memory.embedding_provider = "hashing"
+    settings.memory.embedding_model = "hashing-384"
+    settings.memory.top_k = 3
+    settings.mcp.enabled = True
+    settings.mcp.tool_tracing_enabled = True
+    settings.mcp.enabled_tools = ("browser", "memory", "validation")
     return settings
 
 

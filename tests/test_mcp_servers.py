@@ -6,6 +6,7 @@ from pathlib import Path
 from browser.models import BrowserRunResult
 from browser.playwright_runner import PlaywrightBrowserRunner
 from config.settings import BrowserSettings
+from config.settings import MemorySettings
 from mcp_servers.browser_server import BrowserMCPServer
 from mcp_servers.memory_server import MemoryMCPServer
 from mcp_servers.validation_server import ValidationMCPServer
@@ -76,8 +77,16 @@ async def test_browser_server_returns_error_response_for_invalid_payload():
     assert "TestCase" in str(response.error_message)
 
 
-async def test_memory_server_success_and_stats(temp_settings):
-    manager = MemoryManager(temp_settings.memory)
+async def test_memory_server_success_and_stats(tmp_path):
+    manager = MemoryManager(
+        MemorySettings(
+            enabled=True,
+            vector_db_path=tmp_path / "memory_store",
+            embedding_provider="hashing",
+            embedding_model="hashing-384",
+            top_k=3,
+        )
+    )
     server = MemoryMCPServer(manager, timeout_seconds=5)
 
     store_response = await server.execute(

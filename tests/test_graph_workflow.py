@@ -292,6 +292,10 @@ async def test_graph_workflow_memory_retrieval_happens_before_planning(temp_sett
 
 
 async def test_graph_workflow_mcp_enabled_path(temp_settings, sample_test_case, tmp_path, monkeypatch):
+    temp_settings.memory.enabled = True
+    temp_settings.mcp.enabled = True
+    temp_settings.mcp.tool_tracing_enabled = True
+    temp_settings.mcp.enabled_tools = ("browser", "memory", "validation")
     workflow = LangGraphWorkflow(temp_settings)
 
     monkeypatch.setattr(

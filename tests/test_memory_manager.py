@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from config.settings import MemorySettings
 from memory.memory_manager import MemoryManager
 
 
-def test_store_memory_entry_and_retrieve_similar(temp_settings):
-    manager = MemoryManager(temp_settings.memory)
+def enabled_memory_settings(tmp_path: Path) -> MemorySettings:
+    return MemorySettings(
+        enabled=True,
+        vector_db_path=tmp_path / "memory_store",
+        embedding_provider="hashing",
+        embedding_model="hashing-384",
+        top_k=3,
+    )
+
+
+def test_store_memory_entry_and_retrieve_similar(tmp_path):
+    manager = MemoryManager(enabled_memory_settings(tmp_path))
 
     store_result = manager.store_execution(
         run_id="run-1",
@@ -32,8 +44,9 @@ def test_store_memory_entry_and_retrieve_similar(temp_settings):
     assert retrieval.results[0].entry.run_id == "run-1"
 
 
-def test_persistence_across_manager_reload(temp_settings):
-    manager = MemoryManager(temp_settings.memory)
+def test_persistence_across_manager_reload(tmp_path):
+    settings = enabled_memory_settings(tmp_path)
+    manager = MemoryManager(settings)
     manager.store_execution(
         run_id="run-1",
         url="https://example.com",
@@ -46,7 +59,7 @@ def test_persistence_across_manager_reload(temp_settings):
         final_result="passed",
     )
 
-    reloaded = MemoryManager(temp_settings.memory)
+    reloaded = MemoryManager(settings)
     retrieval = reloaded.retrieve_similar(
         url="https://example.com",
         instruction="Open homepage",
@@ -57,8 +70,8 @@ def test_persistence_across_manager_reload(temp_settings):
     assert len(retrieval.results) == 1
 
 
-def test_top_k_behavior_limits_results(temp_settings):
-    manager = MemoryManager(temp_settings.memory)
+def test_top_k_behavior_limits_results(tmp_path):
+    manager = MemoryManager(enabled_memory_settings(tmp_path))
     for index in range(3):
         manager.store_execution(
             run_id=f"run-{index}",
@@ -113,8 +126,8 @@ def test_disabled_memory_mode_returns_disabled_result(tmp_path):
     assert store_result.status == "disabled"
 
 
-def test_no_crash_when_memory_store_is_empty(temp_settings):
-    manager = MemoryManager(temp_settings.memory)
+def test_no_crash_when_memory_store_is_empty(tmp_path):
+    manager = MemoryManager(enabled_memory_settings(tmp_path))
 
     retrieval = manager.retrieve_similar(
         url="https://example.com",
