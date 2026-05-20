@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Metrics | SentinelAI{% endblock %}
+{% block page_heading %}Execution Metrics{% endblock %}
+{% block page_subtitle %}Review aggregate runtime behavior across recent SentinelAI workflows without leaving the local dashboard.{% endblock %}
+
+{% block content %}
+<section class="metric-grid">
+  <article class="metric-card">
+    <span class="metric-label">Total Runs</span>
+    <strong class="metric-value">{{ metrics_summary.total_runs }}</strong>
+  </article>
+  <article class="metric-card success">
+    <span class="metric-label">Pass Rate</span>
+    <strong class="metric-value">{{ metrics_summary.pass_rate }}%</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Avg Duration</span>
+    <strong class="metric-value">{{ metrics_summary.average_duration_display }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Avg Retries</span>
+    <strong class="metric-value">{{ metrics_summary.average_retries }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Avg Memory Hits</span>
+    <strong class="metric-value">{{ metrics_summary.average_memory_hits }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Avg Tool Calls</span>
+    <strong class="metric-value">{{ metrics_summary.average_tool_invocations }}</strong>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h3>Recent Workflow Durations</h3></div>
+  {% if metrics_summary.recent_runs %}
+  <div class="stack">
+    {% for run in metrics_summary.recent_runs %}
+    <div class="bar-card">
+      <div class="bar-card-head">
+        <strong>{{ run.run_id }}</strong>
+        <span>{{ run.duration_display }}</span>
+      </div>
+      <div class="bar-line">
+        <span class="bar-fill" style="width: {{ 20 + (run.duration_ms or 0) / 200 }}%;"></span>
+      </div>
+      <small>{{ run.phase|upper }} / {{ run.status|upper }} / {{ run.retry_count }} retries</small>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state compact"><p>No execution metrics are available yet.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

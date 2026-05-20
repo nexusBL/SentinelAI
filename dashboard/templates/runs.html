@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Runs | SentinelAI{% endblock %}
+{% block page_heading %}Run History{% endblock %}
+{% block page_subtitle %}Browse prior SentinelAI executions, filter by outcome, and jump directly into detailed artifact views.{% endblock %}
+
+{% block header_actions %}
+<input id="run-filter" class="search-input" type="search" placeholder="Filter by run ID, phase, status, or URL" />
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>All Runs</h3>
+    <span class="panel-meta">{{ runs|length }} run(s)</span>
+  </div>
+
+  {% if runs %}
+  <div class="table-wrap">
+    <table id="runs-table">
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Timestamp</th>
+          <th>Phase</th>
+          <th>Status</th>
+          <th>URL</th>
+          <th>Retries</th>
+          <th>Memory Hits</th>
+          <th>MCP</th>
+          <th>Duration</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr data-filter-text="{{ run.run_id }} {{ run.phase }} {{ run.status }} {{ run.requested_url }} {{ run.instruction }}">
+          <td class="mono">{{ run.run_id }}</td>
+          <td>{{ run.created_at_display }}</td>
+          <td>{{ run.phase|upper }}</td>
+          <td><span class="badge {{ run.status }}">{{ run.status|upper }}</span></td>
+          <td>{{ run.requested_url or "Unknown" }}</td>
+          <td>{{ run.retry_count }}</td>
+          <td>{{ run.memory_hits }}</td>
+          <td>{% if run.mcp_enabled %}Enabled{% else %}Disabled{% endif %}</td>
+          <td>{{ run.duration_display }}</td>
+          <td><a class="text-link" href="/runs/{{ run.run_id }}">Details</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h4>No runs available</h4>
+    <p>Run history will appear here after you execute your first workflow.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Run {{ detail.summary.run_id }} | SentinelAI{% endblock %}
+{% block page_heading %}Run Detail{% endblock %}
+{% block page_subtitle %}Inspect artifacts, traces, screenshots, memory context, and execution metrics for a single SentinelAI run.{% endblock %}
+
+{% block header_actions %}
+<button class="button secondary" type="button" data-copy-text="{{ detail.summary.run_id }}">Copy Run ID</button>
+{% if detail.summary.report_html_exists %}
+<a class="button primary" href="/runs/{{ detail.summary.run_id }}/report-html">Open HTML Report</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="metric-grid">
+  <article class="metric-card">
+    <span class="metric-label">Run ID</span>
+    <strong class="metric-value mono">{{ detail.summary.run_id }}</strong>
+  </article>
+  <article class="metric-card {% if detail.summary.status == 'passed' %}success{% else %}danger{% endif %}">
+    <span class="metric-label">Status</span>
+    <strong class="metric-value">{{ detail.summary.status|upper }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Phase</span>
+    <strong class="metric-value">{{ detail.summary.phase|upper }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Duration</span>
+    <strong class="metric-value">{{ detail.summary.duration_display }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Memory Hits</span>
+    <strong class="metric-value">{{ detail.summary.memory_hits }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Tool Calls</span>
+    <strong class="metric-value">{{ detail.summary.tool_invocation_count }}</strong>
+  </article>
+</section>
+
+<section class="panel-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <h3>Summary</h3>
+    </div>
+    <div class="detail-list">
+      <div><span>Requested URL</span><strong>{{ detail.summary.requested_url or "Unknown" }}</strong></div>
+      <div><span>Final URL</span><strong>{{ detail.summary.final_url or "Unknown" }}</strong></div>
+      <div><span>Instruction</span><strong>{{ detail.summary.instruction or "Unknown" }}</strong></div>
+      <div><span>Created</span><strong>{{ detail.summary.created_at_display }}</strong></div>
+      <div><span>Retry Count</span><strong>{{ detail.summary.retry_count }}</strong></div>
+      <div><span>MCP Enabled</span><strong>{% if detail.summary.mcp_enabled %}Enabled{% else %}Disabled{% endif %}</strong></div>
+    </div>
+    {% if detail.summary.failure_reason %}
+    <div class="notice danger">{{ detail.summary.failure_reason }}</div>
+    {% endif %}
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h3>Artifact Links</h3>
+    </div>
+    <div class="detail-list">
+      <div><span>Report JSON</span><strong>{% if detail.summary.report_json_exists %}<a href="/api/runs/{{ detail.summary.run_id }}/report">View API</a>{% else %}Missing{% endif %}</strong></div>
+      <div><span>Graph Trace</span><strong>{% if detail.summary.graph_trace_exists %}<a href="/api/runs/{{ detail.summary.run_id }}/graph-trace">View API</a>{% else %}Missing{% endif %}</strong></div>
+      <div><span>Planner Trace</span><strong>{% if detail.summary.planner_trace_exists %}<a href="/api/runs/{{ detail.summary.run_id }}/planner-trace">View API</a>{% else %}Missing{% endif %}</strong></div>
+      <div><span>Tool Trace</span><strong>{% if detail.summary.tool_trace_exists %}<a href="/api/runs/{{ detail.summary.run_id }}/tool-trace">View API</a>{% else %}Missing{% endif %}</strong></div>
+      <div><span>Metrics</span><strong>{% if detail.summary.metrics_exists %}<a href="/api/runs/{{ detail.summary.run_id }}/metrics">View API</a>{% else %}Missing{% endif %}</strong></div>
+      <div><span>Screenshots</span><strong><a href="/api/runs/{{ detail.summary.run_id }}/screenshots">View API</a></strong></div>
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Screenshots</h3>
+  </div>
+  {% if detail.screenshots %}
+  <div class="gallery">
+    {% for screenshot in detail.screenshots %}
+    <a class="gallery-item" href="{{ screenshot.url }}" target="_blank" rel="noopener">
+      <img src="{{ screenshot.url }}" alt="{{ screenshot.name }}" />
+      <span>{{ screenshot.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state compact"><p>No screenshots are available for this run.</p></div>
+  {% endif %}
+</section>
+
+{% if detail.latest_memory_context %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Latest Memory Context</h3>
+  </div>
+  <div class="code-block">{{ detail.latest_memory_context }}</div>
+</section>
+{% endif %}
+
+<section class="stack">
+  <details class="json-panel" open>
+    <summary>Execution Metrics</summary>
+    <pre>{{ detail.metrics_pretty }}</pre>
+  </details>
+
+  <details class="json-panel">
+    <summary>Graph Trace</summary>
+    <pre>{{ detail.graph_trace_pretty }}</pre>
+  </details>
+
+  <details class="json-panel">
+    <summary>Planner Trace</summary>
+    <pre>{{ detail.planner_trace_pretty }}</pre>
+  </details>
+
+  <details class="json-panel">
+    <summary>MCP Tool Trace</summary>
+    <pre>{{ detail.tool_trace_pretty }}</pre>
+  </details>
+
+  <details class="json-panel">
+    <summary>Report JSON</summary>
+    <pre>{{ detail.report_pretty }}</pre>
+  </details>
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Error | SentinelAI{% endblock %}
+{% block page_heading %}Something Went Wrong{% endblock %}
+{% block page_subtitle %}The dashboard handled the problem safely and did not crash the core SentinelAI system.{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <div class="empty-state error-state">
+    <h3>{{ title }}</h3>
+    <p>{{ message }}</p>
+    <div class="inline-actions">
+      <a class="button primary" href="/">Back To Overview</a>
+      <a class="button secondary" href="/runs">Open Run History</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

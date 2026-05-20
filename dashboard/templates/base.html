@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ product_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <div class="brand-title">{{ product_name }}</div>
+          <div class="brand-subtitle">Autonomous Web Testing Platform</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        {% for item in nav_items %}
+        <a class="nav-link {% if active_page == item.id %}active{% endif %}" href="{{ item.path }}">
+          <span>{{ item.label }}</span>
+        </a>
+        {% endfor %}
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="sidebar-note">Local-first demo surface</div>
+        <div class="sidebar-version">{{ footer_note }}</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">{% block eyebrow %}SentinelAI Dashboard{% endblock %}</p>
+          <h1>{% block page_heading %}{{ product_name }}{% endblock %}</h1>
+          <p class="page-subtitle">{% block page_subtitle %}Operational visibility for runs, reports, memory, tools, and metrics.{% endblock %}</p>
+        </div>
+        <div class="header-actions">
+          {% block header_actions %}{% endblock %}
+        </div>
+      </header>
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', path='app.js') }}"></script>
+</body>
+</html>

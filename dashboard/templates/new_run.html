@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}New Run | SentinelAI{% endblock %}
+{% block page_heading %}Start A New Run{% endblock %}
+{% block page_subtitle %}Trigger existing SentinelAI workflows from a polished browser form without changing the backend execution engine.{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <div class="panel-head">
+    <h3>Execution Form</h3>
+  </div>
+  <form class="run-form" method="post" action="/run" data-run-form>
+    <label>
+      <span>Target URL</span>
+      <input type="url" name="url" placeholder="https://example.com" required />
+    </label>
+
+    <label>
+      <span>Instruction</span>
+      <textarea name="instruction" rows="5" placeholder="Test the homepage and verify the title." required></textarea>
+    </label>
+
+    <div class="form-grid">
+      <label>
+        <span>Execution Mode</span>
+        <select name="mode">
+          {% for mode in defaults.supported_modes %}
+          <option value="{{ mode }}" {% if mode == defaults.default_mode %}selected{% endif %}>{{ mode|upper }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>Model</span>
+        <input type="text" name="model" value="{{ defaults.default_model }}" />
+      </label>
+
+      <label>
+        <span>Max Retries</span>
+        <input type="number" name="max_retries" min="0" value="{{ defaults.default_max_retries }}" />
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" name="memory_enabled" {% if defaults.default_memory_enabled %}checked{% endif %} />
+        <span>Enable Memory</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="mcp_enabled" {% if defaults.default_mcp_enabled %}checked{% endif %} />
+        <span>Enable MCP</span>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button class="button primary" type="submit" data-run-submit>Run SentinelAI</button>
+      <p class="form-note">Phase 3 ignores memory and MCP toggles because it only uses planning plus deterministic execution.</p>
+    </div>
+  </form>
+</section>
+{% endblock %}

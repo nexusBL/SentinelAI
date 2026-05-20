@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Reports | SentinelAI{% endblock %}
+{% block page_heading %}Reports{% endblock %}
+{% block page_subtitle %}Browse generated HTML and JSON reports without digging through local artifact folders.{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Available Reports</h3>
+  </div>
+  {% if reports %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Timestamp</th>
+          <th>Status</th>
+          <th>Phase</th>
+          <th>HTML</th>
+          <th>JSON</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in reports %}
+        <tr>
+          <td class="mono">{{ report.run_id }}</td>
+          <td>{{ report.created_at_display }}</td>
+          <td><span class="badge {{ report.status }}">{{ report.status|upper }}</span></td>
+          <td>{{ report.phase|upper }}</td>
+          <td>
+            {% if report.report_html_exists %}
+            <a class="text-link" href="/runs/{{ report.run_id }}/report-html">Open HTML</a>
+            {% else %}
+            Missing
+            {% endif %}
+          </td>
+          <td>
+            {% if report.report_json_exists %}
+            <a class="text-link" href="/api/runs/{{ report.run_id }}/report">Open JSON</a>
+            {% else %}
+            Missing
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h4>No reports available</h4>
+    <p>Reports will appear here once SentinelAI has completed one or more runs.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,1 @@
+"""SentinelAI dashboard package."""

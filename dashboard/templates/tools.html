@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Tools | SentinelAI{% endblock %}
+{% block page_heading %}MCP Tools{% endblock %}
+{% block page_subtitle %}Inspect the modular tool layer that powers browser, memory, and validation capabilities inside SentinelAI workflows.{% endblock %}
+
+{% block content %}
+<section class="metric-grid">
+  <article class="metric-card">
+    <span class="metric-label">MCP Enabled</span>
+    <strong class="metric-value">{% if tools_summary.enabled %}Yes{% else %}No{% endif %}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Tool Tracing</span>
+    <strong class="metric-value">{% if tools_summary.tool_tracing_enabled %}On{% else %}Off{% endif %}</strong>
+  </article>
+  <article class="metric-card wide">
+    <span class="metric-label">Available Tools</span>
+    <strong class="metric-value">{{ tools_summary.available_tools|join(", ") if tools_summary.available_tools else "None" }}</strong>
+  </article>
+</section>
+
+<section class="panel-grid">
+  <article class="panel">
+    <div class="panel-head"><h3>Tool Summary</h3></div>
+    {% if tools_summary.tool_stats %}
+    <div class="stack">
+      {% for tool_name, stats in tools_summary.tool_stats.items() %}
+      <div class="bar-card">
+        <div class="bar-card-head">
+          <strong>{{ tool_name }}</strong>
+          <span>{{ stats.count }} call(s)</span>
+        </div>
+        <div class="bar-line">
+          <span class="bar-fill" style="width: {{ 100 - (stats.failure_count * 100 / stats.count if stats.count else 0) }}%;"></span>
+        </div>
+        <small>{{ stats.failure_count }} failure(s), avg {{ stats.average_duration_ms }} ms</small>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state compact"><p>No MCP tool activity has been recorded yet.</p></div>
+    {% endif %}
+  </article>
+
+  <article class="panel">
+    <div class="panel-head"><h3>Recent Tool Invocations</h3></div>
+    {% if tools_summary.recent_events %}
+    <ul class="activity-list">
+      {% for event in tools_summary.recent_events %}
+      <li>
+        <strong>{{ event.tool_name }}.{{ event.action }}</strong>
+        <span>{{ event.run_id }} via {{ event.graph_node }}</span>
+        <small>{{ event.duration_ms }} ms / {{ event.status }}</small>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state compact"><p>No recent tool trace data is available.</p></div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}
