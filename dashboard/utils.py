@@ -293,7 +293,7 @@ def build_overview(settings: AppSettings) -> dict[str, Any]:
     passed_runs = [run for run in runs if run["status"] == "passed"]
     failed_runs = [run for run in runs if run["status"] == "failed"]
     latest_run = runs[0] if runs else None
-    workflow_file = Path(".github/workflows/ci.yml")
+    workflow_file = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     return {
         "total_runs": len(runs),
         "passed_runs": len(passed_runs),

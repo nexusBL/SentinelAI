@@ -1,7 +1,7 @@
 # SentinelAI
 [![CI](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml/badge.svg)](https://github.com/nexusBL/SentinelAI/actions/workflows/ci.yml)
 
-SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1**, **Phase 2**, **Phase 3**, **Phase 4**, **Phase 5**, **Phase 6**, **Phase 7**, and **Phase 8**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, automated quality gates, and GitHub Actions CI.
+SentinelAI is a production-oriented foundation for an autonomous AI web testing platform. The repository currently covers **Phase 1** through **Phase 9**: browser automation, artifact capture, structured test execution, rule-based validation, Ollama-based AI planning, LangGraph-based orchestration with retries and replanning, persistent memory-backed learning, MCP-style tool orchestration, automated quality gates, GitHub Actions CI, and an optional FastAPI dashboard for local product-style visibility.
 
 ## Current Capabilities
 
@@ -22,6 +22,7 @@ SentinelAI is a production-oriented foundation for an autonomous AI web testing 
 - tool invocation tracing and MCP metrics
 - centralized logging utilities
 - GitHub Actions quality pipeline
+- FastAPI multi-page dashboard with artifact browsing
 - Docker-ready app scaffold
 
 ## Architecture Direction
@@ -38,6 +39,7 @@ Current implementation path:
 - `reporting/`: artifact and report generation
 - `memory/`: embeddings, vector store, and memory manager
 - `mcp_servers/`: MCP-style registry and tool servers
+- `dashboard/`: optional FastAPI UI, templates, static assets, and artifact viewers
 - `validation/`: rule-based assertions
 - `sentinelai/`: shared runtime types and test-case schema
 
@@ -49,6 +51,7 @@ SentinelAI/
 |-- agents/
 |-- browser/
 |-- config/
+|-- dashboard/
 |-- docker/
 |-- mcp_servers/
 |-- memory/
@@ -198,7 +201,51 @@ Phase 3 planner logs include:
 - parsed JSON per valid parse attempt
 - final normalized test plan
 
+## Dashboard
+
+Phase 9 adds an optional local-first dashboard built with FastAPI, Jinja2 templates, custom CSS, and vanilla JavaScript. It does not replace the CLI or backend workflows; it wraps the existing system so you can demo runs, browse artifacts, and inspect traces in a more product-like interface.
+
+Run the dashboard locally:
+
+```powershell
+uvicorn dashboard.app:app --reload
+```
+
+Primary routes:
+
+- `/`: overview cards, recent runs, system status
+- `/new-run`: polished run form for Phase 3 through Phase 6 workflows
+- `/runs`: searchable run history
+- `/runs/{run_id}`: run detail, screenshots, traces, metrics, and report links
+- `/reports`: generated HTML and JSON reports
+- `/memory`: memory status, recent writes, and retrieval activity
+- `/tools`: MCP tool summary and recent tool invocations
+- `/metrics`: aggregate workflow metrics
+- `/settings`: read-only runtime configuration
+
+The dashboard is:
+
+- optional
+- local-first
+- safe on missing artifacts
+- separate from the planner, executor, validation, memory, MCP, and CLI layers
+
+No Streamlit is used. The existing CLI remains fully supported.
+
+Screenshot placeholder section:
+
+- Add product screenshots or demo captures here for GitHub presentation once you have a preferred local run history to showcase.
+
 ## Testing And Quality Gates
+
+Before pushing changes, run the same core checks locally that CI runs:
+
+```powershell
+python -m compileall .
+python -m pytest
+python scripts/smoke_test.py
+python scripts/dev_check.py
+```
 
 Run the automated test suite:
 
@@ -229,6 +276,7 @@ What the Phase 7 checks cover:
 - `tests/test_graph_workflow.py`: success, retry, max-retry stop, memory ordering, and MCP-enabled or disabled graph behavior
 - `tests/test_reporting.py`: report and trace artifact writing
 - `tests/test_backward_compatibility.py`: phase command availability, help output, and import safety
+- `tests/test_dashboard_utils.py` and `tests/test_dashboard_routes.py`: safe artifact loading, empty-state rendering, run-detail APIs, and dashboard route behavior without real Ollama or browser execution
 
 The unit test suite is designed to run without a real Ollama service and without internet access. Planner tests use mock responses, and the smoke test only checks initialization paths.
 
@@ -260,7 +308,7 @@ python scripts/dev_check.py
 If you need more detail, run the individual steps locally:
 
 ```powershell
-python -m compileall main.py agents ai browser config memory mcp_servers reporting scripts sentinelai tests validation
+python -m compileall .
 python -m pytest
 python scripts/smoke_test.py
 ```
@@ -282,4 +330,4 @@ If you want to use Phase 3 from Docker later, point the container at a reachable
 
 ## What Comes Next
 
-- Phase 9: expanded multi-container runtime
+- Phase 10+: richer productization layers such as hosted UI, deployment workflows, integration tests, or comparative report tooling

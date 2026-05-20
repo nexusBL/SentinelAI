@@ -16,9 +16,9 @@ from dashboard.services import execute_dashboard_run
 from dashboard.utils import build_memory_summary
 from dashboard.utils import build_metrics_summary
 from dashboard.utils import build_overview
-from dashboard.utils import build_report_index_entry
 from dashboard.utils import build_settings_summary
 from dashboard.utils import build_tools_summary
+from dashboard.utils import ensure_relative_to
 from dashboard.utils import get_run_detail
 from dashboard.utils import is_valid_run_id
 from dashboard.utils import list_api_screenshots
@@ -55,9 +55,9 @@ def _render_page(
     **context,
 ):
     return templates.TemplateResponse(
+        request,
         template_name,
         {
-            "request": request,
             "active_page": active_page,
             "nav_items": NAV_ITEMS,
             "product_name": "SentinelAI",
@@ -125,6 +125,7 @@ async def run_submit(
 ):
     try:
         summary = await execute_dashboard_run(
+            base_settings=_settings(request),
             mode=mode,
             url=url.strip(),
             instruction=instruction.strip(),
@@ -272,16 +273,16 @@ async def report_html_page(request: Request, run_id: str):
 
 @router.get("/runs/{run_id}/screenshots/{file_name}", name="dashboard_run_screenshot")
 async def run_screenshot(request: Request, run_id: str, file_name: str):
-    del request
-    settings = _settings(request) if False else None
-    settings = request.app.state.settings if request is not None else settings
+    settings = _settings(request)
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
     if run_dir is None:
         return _json_not_found("Run not found.")
     if Path(file_name).name != file_name:
         return _json_not_found("Screenshot not found.")
-    screenshot_path = run_dir / "screenshots" / file_name
-    if not screenshot_path.exists() or not ensure_relative_to(run_dir, screenshot_path):
+    screenshot_path = (run_dir / "screenshots" / file_name).resolve()
+    if not screenshot_path.exists() or not screenshot_path.is_file():
+        return _json_not_found("Screenshot not found.")
+    if not ensure_relative_to(run_dir, screenshot_path):
         return _json_not_found("Screenshot not found.")
     return FileResponse(screenshot_path)
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from agents.graph_workflow import LangGraphWorkflow
 from config.settings import AppSettings
-from main import resolve_settings
 from main import run_phase3
 
 
@@ -13,6 +13,7 @@ SUPPORTED_MODES = ("phase3", "phase4", "phase5", "phase6")
 
 async def execute_dashboard_run(
     *,
+    base_settings: AppSettings,
     mode: str,
     url: str,
     instruction: str,
@@ -32,7 +33,7 @@ async def execute_dashboard_run(
             model=model,
         )
 
-    settings = resolve_settings(headed=False)
+    settings = deepcopy(base_settings)
     settings.memory.enabled = memory_enabled
     settings.mcp.enabled = mcp_enabled
     workflow = LangGraphWorkflow(settings)

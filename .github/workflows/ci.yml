@@ -36,7 +36,7 @@ jobs:
 
       - name: Compile source tree
         run: |
-          python -m compileall main.py agents ai browser config memory mcp_servers reporting scripts sentinelai tests validation
+          python -m compileall .
 
       - name: Run pytest suite
         run: |

@@ -13,6 +13,7 @@ def main() -> int:
 
     from agents.graph_workflow import LangGraphWorkflow
     from config.settings import load_settings
+    from dashboard.app import create_app
     from mcp_servers import MCPToolRegistry
     from memory.memory_manager import MemoryManager
     from sentinelai.test_case import load_test_case
@@ -33,6 +34,7 @@ def main() -> int:
             enabled_tools=settings.mcp.enabled_tools,
         )
         workflow = LangGraphWorkflow(settings)
+        dashboard_app = create_app(settings)
 
         summary = {
             "settings_loaded": True,
@@ -42,6 +44,8 @@ def main() -> int:
             "mcp_registry_enabled": registry.enabled,
             "graph_compiled": workflow.graph is not None,
             "registered_mcp_servers": workflow.mcp_registry.available_servers(),
+            "dashboard_loaded": dashboard_app is not None,
+            "dashboard_route_count": len(dashboard_app.router.routes),
         }
         print(json.dumps(summary, indent=2))
     return 0
