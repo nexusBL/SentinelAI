@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 
 from dashboard.app import app as module_app
 from dashboard.app import create_app
+from jobs.models import JobRecord
+from jobs.models import JobRequest
 
 
 def build_client(temp_settings) -> TestClient:
@@ -97,16 +99,51 @@ def test_dashboard_screenshot_route_rejects_path_traversal(temp_settings, make_d
     assert response.json()["error"] == "Screenshot not found."
 
 
-def test_dashboard_run_submit_redirects_on_success(temp_settings, monkeypatch):
+def test_dashboard_job_page_and_apis_work(temp_settings, monkeypatch):
     client = build_client(temp_settings)
-    run_id = "20260520T124500000000Z"
+    job = JobRecord(
+        request=JobRequest(
+            mode="phase6",
+            url="https://example.com",
+            instruction="Test homepage",
+        ),
+        job_id="job-123",
+        status="queued",
+        progress={"message": "Queued for execution", "stage": "queued", "percent": 0},
+    )
 
-    async def fake_execute_dashboard_run(**kwargs):
-        assert kwargs["mode"] == "phase6"
-        assert kwargs["base_settings"] is temp_settings
-        return {"run_id": run_id, "status": "passed"}
+    class FakeManager:
+        async def submit(self, request):
+            assert request.mode == "phase6"
+            return job
 
-    monkeypatch.setattr("dashboard.routes.execute_dashboard_run", fake_execute_dashboard_run)
+        async def get(self, job_id):
+            return job if job_id == job.job_id else None
+
+        async def list_jobs(self):
+            return [job]
+
+        async def active_jobs(self):
+            return [job]
+
+        async def cancel(self, job_id):
+            job.status = "cancelled"
+            return job
+
+        async def metrics(self):
+            return {
+                "total_jobs": 1,
+                "queued_jobs": 1,
+                "running_jobs": 0,
+                "completed_jobs": 0,
+                "failed_jobs": 0,
+                "cancelled_jobs": 0,
+                "queue_length": 1,
+                "average_execution_ms": 0,
+                "worker_running": True,
+            }
+
+    monkeypatch.setattr("dashboard.routes._job_manager", lambda request: FakeManager())
 
     response = client.post(
         "/run",
@@ -123,16 +160,33 @@ def test_dashboard_run_submit_redirects_on_success(temp_settings, monkeypatch):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith(f"/runs/{run_id}")
+    assert response.headers["location"].endswith(f"/jobs/{job.job_id}")
+
+    page_response = client.get(f"/jobs/{job.job_id}")
+    status_response = client.get(f"/api/jobs/{job.job_id}")
+    list_response = client.get("/api/jobs")
+    active_response = client.get("/api/jobs/active")
+    metrics_response = client.get("/api/jobs/metrics")
+    cancel_response = client.post(f"/api/jobs/{job.job_id}/cancel")
+
+    assert page_response.status_code == 200
+    assert "Job Status" in page_response.text
+    assert status_response.status_code == 200
+    assert status_response.json()["job"]["job_id"] == job.job_id
+    assert list_response.status_code == 200
+    assert active_response.status_code == 200
+    assert metrics_response.status_code == 200
+    assert cancel_response.status_code == 200
 
 
 def test_dashboard_run_submit_returns_friendly_error_page(temp_settings, monkeypatch):
     client = build_client(temp_settings)
 
-    async def failing_execute_dashboard_run(**kwargs):
-        raise RuntimeError("boom")
+    class FakeManager:
+        async def submit(self, request):
+            raise RuntimeError("boom")
 
-    monkeypatch.setattr("dashboard.routes.execute_dashboard_run", failing_execute_dashboard_run)
+    monkeypatch.setattr("dashboard.routes._job_manager", lambda request: FakeManager())
 
     response = client.post(
         "/run",

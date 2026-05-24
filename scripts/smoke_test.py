@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import tempfile
@@ -14,6 +15,7 @@ def main() -> int:
     from agents.graph_workflow import LangGraphWorkflow
     from config.settings import load_settings
     from dashboard.app import create_app
+    from jobs.manager import JobManager
     from mcp_servers import MCPToolRegistry
     from memory.memory_manager import MemoryManager
     from sentinelai.test_case import load_test_case
@@ -39,6 +41,8 @@ def main() -> int:
         )
         workflow = LangGraphWorkflow(settings)
         dashboard_app = create_app(settings)
+        job_manager = JobManager(settings)
+        job_metrics = asyncio.run(job_manager.metrics())
 
         summary = {
             "settings_loaded": True,
@@ -52,6 +56,9 @@ def main() -> int:
             "registered_mcp_servers": workflow.mcp_registry.available_servers(),
             "dashboard_loaded": dashboard_app is not None,
             "dashboard_route_count": len(dashboard_app.router.routes),
+            "job_manager_loaded": job_manager is not None,
+            "job_worker_running": job_metrics["worker_running"],
+            "job_queue_length": job_metrics["queue_length"],
         }
         print(json.dumps(summary, indent=2))
     return 0

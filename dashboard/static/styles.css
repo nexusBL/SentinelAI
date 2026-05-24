@@ -192,6 +192,7 @@ h1, h2, h3, h4, p {
 }
 
 .badge.passed,
+.badge.completed,
 .metric-card.success {
   background: var(--accent-soft);
   color: var(--accent);
@@ -203,9 +204,15 @@ h1, h2, h3, h4, p {
   color: var(--danger);
 }
 
-.badge.running {
+.badge.running,
+.badge.queued {
   background: var(--warning-soft);
   color: var(--warning);
+}
+
+.badge.cancelled {
+  background: var(--panel-soft);
+  color: var(--muted);
 }
 
 .badge.unknown,
@@ -525,6 +532,10 @@ select {
   margin-bottom: 8px;
 }
 
+.bar-line.large {
+  height: 14px;
+}
+
 .bar-fill {
   display: block;
   height: 100%;
@@ -557,6 +568,10 @@ select {
 .settings-item span {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.hidden {
+  display: none !important;
 }
 
 @media (max-width: 1100px) {

@@ -72,6 +72,7 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Phase 10 | Final documentation, demo assets, and GitHub packaging polish | Complete |
 | Phase 11 | Real dashboard screenshots and visual showcase assets | Complete |
 | Phase 12 | Local production Docker Compose and NGINX deployment foundation | Complete |
+| Phase 13 | Async job queue, background worker, and live dashboard polling | Complete |
 
 ## Repository Layout
 
@@ -84,6 +85,7 @@ SentinelAI/
 |-- dashboard/          # Optional FastAPI dashboard, templates, and static assets
 |-- docker/             # Production-style Docker Compose, app image, and NGINX config
 |-- docs/               # Architecture, demo, troubleshooting, and screenshot placeholders
+|-- jobs/               # Lightweight in-process async job queue and worker
 |-- mcp_servers/        # MCP-style tool interfaces and registry
 |-- memory/             # Embeddings, vector store, and memory manager
 |-- reporting/          # Artifact and report generation
@@ -169,6 +171,8 @@ Open:
 - `http://127.0.0.1:8000/settings`
 
 The dashboard remains optional. The CLI is still the primary backend interface, and no Streamlit is used.
+
+Phase 13 makes dashboard execution asynchronous. New Run submissions create a background job immediately, redirect to `/jobs/<job_id>`, and poll the local API until a final `run_id` is available.
 
 ## Demo Flow
 
@@ -256,6 +260,7 @@ What the quality system covers:
 - LangGraph workflow success and retry paths
 - reporting and artifact writing
 - dashboard route and utility safety
+- async job lifecycle and dashboard polling APIs
 - backward compatibility of the CLI
 
 GitHub Actions runs the same core checks on `push` and `pull_request` to `main`.
@@ -288,7 +293,7 @@ docker compose -f docker/docker-compose.yml down
 
 The deployment uses:
 
-- `sentinelai-app`: FastAPI served by Gunicorn with Uvicorn workers
+- `sentinelai-app`: FastAPI served by Gunicorn with one Uvicorn worker while jobs are in-process
 - `sentinelai-nginx`: reverse proxy on localhost port `8000`
 - `sentinelai_artifacts`: persistent Docker volume for reports and screenshots
 - `sentinelai_memory_store`: persistent Docker volume for FAISS memory
@@ -336,6 +341,7 @@ Additional dashboard screenshots are stored in [docs/screenshots](docs/screensho
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DEMO.md](docs/DEMO.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/JOBS.md](docs/JOBS.md)
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ## License / Usage

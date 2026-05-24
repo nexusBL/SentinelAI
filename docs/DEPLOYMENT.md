@@ -7,7 +7,7 @@ This guide explains the Phase 12 deployment foundation. It runs SentinelAI local
 ```mermaid
 flowchart LR
     Browser[Browser] --> Nginx[NGINX Reverse Proxy]
-    Nginx --> App[FastAPI + Gunicorn + Uvicorn Workers]
+    Nginx --> App[FastAPI + Gunicorn + One Uvicorn Worker]
     App --> Artifacts[(artifacts volume)]
     App --> Memory[(memory_store volume)]
     App --> Ollama[Host Ollama Service]
@@ -17,7 +17,7 @@ The Docker stack contains:
 
 | Service | Purpose |
 |---|---|
-| `sentinelai-app` | FastAPI dashboard/backend served by Gunicorn with Uvicorn workers |
+| `sentinelai-app` | FastAPI dashboard/backend served by Gunicorn with one Uvicorn worker |
 | `sentinelai-nginx` | Reverse proxy that exposes the app at `http://127.0.0.1:8000` |
 | `sentinelai_artifacts` | Named Docker volume for run reports, screenshots, traces, and metrics |
 | `sentinelai_memory_store` | Named Docker volume for FAISS memory data |
@@ -111,6 +111,8 @@ The app writes generated data into Docker named volumes:
 
 These volumes survive container restarts and rebuilds. They are intentionally separate from the source tree so deployment runs do not dirty the Git worktree.
 
+Phase 13 uses an in-process job queue, so the Docker app intentionally runs one Gunicorn worker. A future Redis or Celery-backed queue can safely scale this horizontally.
+
 ## Environment Configuration
 
 Most runtime settings come from environment variables. Important deployment values:
@@ -130,6 +132,8 @@ See [.env.example](../.env.example) for the broader runtime settings.
 The Docker image installs from `requirements-docker.txt`, which is intentionally smaller than the local development `requirements.txt`.
 
 The app image uses the official Playwright Python runtime image so Chromium and its OS libraries are already present. The deployment profile uses the default hashing embedding provider, so it does not install the optional `sentence-transformers` stack. Local development keeps the full dependency file for experimentation.
+
+The container starts as root only long enough to prepare the mounted artifact and memory volumes, then the entrypoint launches Gunicorn as the non-root `pwuser` user.
 
 ## Troubleshooting
 

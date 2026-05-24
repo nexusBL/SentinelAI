@@ -2,7 +2,7 @@
 
 {% block title %}New Run | SentinelAI{% endblock %}
 {% block page_heading %}Start A New Run{% endblock %}
-{% block page_subtitle %}Trigger existing SentinelAI workflows from a polished browser form without changing the backend execution engine.{% endblock %}
+{% block page_subtitle %}Queue SentinelAI workflows in the background and track progress without waiting on the browser request.{% endblock %}
 
 {% block content %}
 <section class="panel narrow">
@@ -53,8 +53,8 @@
     </div>
 
     <div class="form-actions">
-      <button class="button primary" type="submit" data-run-submit>Run SentinelAI</button>
-      <p class="form-note">Phase 3 ignores memory and MCP toggles because it only uses planning plus deterministic execution.</p>
+      <button class="button primary" type="submit" data-run-submit>Queue SentinelAI Run</button>
+      <p class="form-note">The dashboard creates a background job immediately. Phase 3 ignores memory and MCP toggles because it only uses planning plus deterministic execution.</p>
     </div>
   </form>
 </section>

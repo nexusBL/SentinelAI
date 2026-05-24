@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Job {{ job.job_id }} | SentinelAI{% endblock %}
+{% block page_heading %}Job Status{% endblock %}
+{% block page_subtitle %}Track queued and running SentinelAI work without blocking the dashboard request.{% endblock %}
+
+{% block header_actions %}
+<button class="button secondary" type="button" data-copy-text="{{ job.job_id }}">Copy Job ID</button>
+{% if job.run_id %}
+<a class="button primary" href="/runs/{{ job.run_id }}">Open Run Detail</a>
+{% endif %}
+{% if job.status in ["queued", "running"] %}
+<button class="button secondary" type="button" data-cancel-job="{{ job.job_id }}">Cancel</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="metric-grid" data-job-watch="{{ job.job_id }}">
+  <article class="metric-card">
+    <span class="metric-label">Job ID</span>
+    <strong class="metric-value mono">{{ job.job_id[:12] }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Status</span>
+    <strong class="metric-value"><span class="badge {{ job.status }}">{{ job.status|upper }}</span></strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Mode</span>
+    <strong class="metric-value">{{ job.request.mode|upper }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Progress</span>
+    <strong class="metric-value">{{ job.progress.percent or 0 }}%</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Run ID</span>
+    <strong class="metric-value mono">{{ job.run_id or "Pending" }}</strong>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Duration</span>
+    <strong class="metric-value">{{ job.duration_ms or 0 }} ms</strong>
+  </article>
+</section>
+
+<section class="panel-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <h3>Request</h3>
+      <span class="badge {{ job.status }}" data-job-status-badge>{{ job.status|upper }}</span>
+    </div>
+    <div class="detail-list">
+      <div><span>URL</span><strong>{{ job.request.url }}</strong></div>
+      <div><span>Instruction</span><strong>{{ job.request.instruction }}</strong></div>
+      <div><span>Model</span><strong>{{ job.request.model or "Default" }}</strong></div>
+      <div><span>Max Retries</span><strong>{{ job.request.max_retries if job.request.max_retries is not none else "Default" }}</strong></div>
+      <div><span>Memory</span><strong>{% if job.request.memory_enabled %}Enabled{% else %}Disabled{% endif %}</strong></div>
+      <div><span>MCP</span><strong>{% if job.request.mcp_enabled %}Enabled{% else %}Disabled{% endif %}</strong></div>
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h3>Lifecycle</h3>
+    </div>
+    <div class="detail-list">
+      <div><span>Created</span><strong>{{ job.created_at or "Unknown" }}</strong></div>
+      <div><span>Started</span><strong data-job-started>{{ job.started_at or "Pending" }}</strong></div>
+      <div><span>Completed</span><strong data-job-completed>{{ job.completed_at or "Pending" }}</strong></div>
+      <div><span>Message</span><strong data-job-message>{{ job.progress.message or "Queued" }}</strong></div>
+    </div>
+    {% if job.failure_reason %}
+    <div class="notice danger" data-job-failure>{{ job.failure_reason }}</div>
+    {% else %}
+    <div class="notice danger hidden" data-job-failure></div>
+    {% endif %}
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Progress</h3>
+    <span data-job-progress-label>{{ job.progress.percent or 0 }}%</span>
+  </div>
+  <div class="bar-line large">
+    <span class="bar-fill" data-job-progress-bar style="width: {{ job.progress.percent or 0 }}%;"></span>
+  </div>
+  <p class="form-note">This page polls the local API every few seconds. When a run ID appears, the workflow artifacts are ready to inspect.</p>
+</section>
+
+<details class="json-panel">
+  <summary>Job Payload</summary>
+  <pre data-job-json>{{ job }}</pre>
+</details>
+{% endblock %}

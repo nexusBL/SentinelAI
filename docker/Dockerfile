@@ -13,10 +13,13 @@ RUN pip install --no-cache-dir -r requirements-docker.txt
 COPY --chown=pwuser:pwuser . /app
 
 RUN mkdir -p /app/artifacts/runs /app/memory_store \
-    && chown -R pwuser:pwuser /app
+    && chown -R pwuser:pwuser /app \
+    && chmod +x /app/docker/entrypoint.sh
 
-USER pwuser
+USER root
 
 EXPOSE 8000
 
-CMD ["gunicorn", "dashboard.app:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+
+CMD ["gunicorn", "dashboard.app:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

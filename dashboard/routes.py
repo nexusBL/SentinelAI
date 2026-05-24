@@ -12,12 +12,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from dashboard.services import dashboard_defaults
-from dashboard.services import execute_dashboard_run
+from dashboard.services import SUPPORTED_MODES
 from dashboard.utils import build_memory_summary
 from dashboard.utils import build_metrics_summary
 from dashboard.utils import build_overview
 from dashboard.utils import build_settings_summary
 from dashboard.utils import build_tools_summary
+from dashboard.utils import coerce_bool
 from dashboard.utils import ensure_relative_to
 from dashboard.utils import get_run_detail
 from dashboard.utils import is_valid_run_id
@@ -25,6 +26,7 @@ from dashboard.utils import list_api_screenshots
 from dashboard.utils import list_reports
 from dashboard.utils import list_runs
 from dashboard.utils import resolve_run_dir
+from jobs.models import JobRequest
 
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -44,6 +46,10 @@ NAV_ITEMS = [
 
 def _settings(request: Request):
     return request.app.state.settings
+
+
+def _job_manager(request: Request):
+    return request.app.state.job_manager
 
 
 def _render_page(
@@ -129,15 +135,16 @@ async def run_submit(
     mcp_enabled: str | None = Form(None),
 ):
     try:
-        summary = await execute_dashboard_run(
-            base_settings=_settings(request),
-            mode=mode,
-            url=url.strip(),
-            instruction=instruction.strip(),
-            model=model.strip() or None,
-            max_retries=max_retries,
-            memory_enabled=memory_enabled is not None,
-            mcp_enabled=mcp_enabled is not None,
+        job = await _job_manager(request).submit(
+            JobRequest(
+                mode=mode,
+                url=url.strip(),
+                instruction=instruction.strip(),
+                model=model.strip() or None,
+                max_retries=max_retries,
+                memory_enabled=memory_enabled is not None,
+                mcp_enabled=mcp_enabled is not None,
+            )
         )
     except ValueError as exc:
         return _page_error(
@@ -154,17 +161,8 @@ async def run_submit(
             status_code=500,
         )
 
-    run_id = summary.get("run_id")
-    if not isinstance(run_id, str) or not is_valid_run_id(run_id):
-        return _page_error(
-            request,
-            title="Execution Failed",
-            message="The workflow did not return a valid run identifier.",
-            status_code=500,
-        )
-
     return RedirectResponse(
-        url=request.url_for("dashboard_run_detail", run_id=run_id),
+        url=request.url_for("dashboard_job_detail", job_id=job.job_id),
         status_code=303,
     )
 
@@ -177,6 +175,28 @@ async def runs_page(request: Request):
         "runs.html",
         active_page="runs",
         runs=list_runs(settings),
+        active_jobs=[
+            job.to_dict()
+            for job in await _job_manager(request).active_jobs()
+        ],
+    )
+
+
+@router.get("/jobs/{job_id}", response_class=HTMLResponse, name="dashboard_job_detail")
+async def job_detail_page(request: Request, job_id: str):
+    job = await _job_manager(request).get(job_id)
+    if job is None:
+        return _page_error(
+            request,
+            title="Job Not Found",
+            message="The requested job could not be found. In-process jobs reset when the app restarts.",
+            status_code=404,
+        )
+    return _render_page(
+        request,
+        "job_detail.html",
+        active_page="runs",
+        job=job.to_dict(),
     )
 
 
@@ -240,6 +260,7 @@ async def metrics_page(request: Request):
         "metrics.html",
         active_page="metrics",
         metrics_summary=build_metrics_summary(settings),
+        job_metrics=await _job_manager(request).metrics(),
     )
 
 
@@ -296,6 +317,65 @@ async def run_screenshot(request: Request, run_id: str, file_name: str):
 async def api_runs(request: Request):
     settings = _settings(request)
     return JSONResponse({"runs": list_runs(settings)})
+
+
+@router.post("/api/jobs", name="api_create_job")
+async def api_create_job(
+    request: Request,
+    payload: dict,
+):
+    try:
+        mode_value = str(payload.get("mode", "phase6"))
+        if mode_value not in SUPPORTED_MODES:
+            raise ValueError(f"Unsupported execution mode '{mode_value}'.")
+        job_request = JobRequest(
+            mode=mode_value,
+            url=str(payload.get("url", "")).strip(),
+            instruction=str(payload.get("instruction", "")).strip(),
+            model=str(payload["model"]).strip() if payload.get("model") else None,
+            max_retries=int(payload["max_retries"]) if payload.get("max_retries") is not None else None,
+            memory_enabled=coerce_bool(payload.get("memory_enabled", True)),
+            mcp_enabled=coerce_bool(payload.get("mcp_enabled", True)),
+        )
+        if not job_request.url or not job_request.instruction:
+            raise ValueError("Both url and instruction are required.")
+        job = await _job_manager(request).submit(job_request)
+    except (TypeError, ValueError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse({"job": job.to_dict()}, status_code=202)
+
+
+@router.get("/api/jobs", name="api_list_jobs")
+async def api_list_jobs(request: Request):
+    jobs = [job.to_dict() for job in await _job_manager(request).list_jobs()]
+    return JSONResponse({"jobs": jobs})
+
+
+@router.get("/api/jobs/active", name="api_active_jobs")
+async def api_active_jobs(request: Request):
+    jobs = [job.to_dict() for job in await _job_manager(request).active_jobs()]
+    return JSONResponse({"jobs": jobs})
+
+
+@router.get("/api/jobs/metrics", name="api_job_metrics")
+async def api_job_metrics(request: Request):
+    return JSONResponse(await _job_manager(request).metrics())
+
+
+@router.get("/api/jobs/{job_id}", name="api_job_status")
+async def api_job_status(request: Request, job_id: str):
+    job = await _job_manager(request).get(job_id)
+    if job is None:
+        return _json_not_found("Job not found.")
+    return JSONResponse({"job": job.to_dict()})
+
+
+@router.post("/api/jobs/{job_id}/cancel", name="api_cancel_job")
+async def api_cancel_job(request: Request, job_id: str):
+    job = await _job_manager(request).cancel(job_id)
+    if job is None:
+        return _json_not_found("Job not found.")
+    return JSONResponse({"job": job.to_dict()})
 
 
 @router.get("/api/runs/{run_id}/report", name="api_run_report")
@@ -367,4 +447,6 @@ async def api_tools_summary(request: Request):
 @router.get("/api/metrics/summary", name="api_metrics_summary")
 async def api_metrics_summary(request: Request):
     settings = _settings(request)
-    return JSONResponse(build_metrics_summary(settings))
+    payload = build_metrics_summary(settings)
+    payload["jobs"] = await _job_manager(request).metrics()
+    return JSONResponse(payload)

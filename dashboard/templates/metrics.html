@@ -33,6 +33,20 @@
 </section>
 
 <section class="panel">
+  <div class="panel-head"><h3>Async Job Queue</h3></div>
+  <div class="settings-grid">
+    <div class="settings-item"><span>Total Jobs</span><strong>{{ job_metrics.total_jobs }}</strong></div>
+    <div class="settings-item"><span>Queued</span><strong>{{ job_metrics.queued_jobs }}</strong></div>
+    <div class="settings-item"><span>Running</span><strong>{{ job_metrics.running_jobs }}</strong></div>
+    <div class="settings-item"><span>Completed</span><strong>{{ job_metrics.completed_jobs }}</strong></div>
+    <div class="settings-item"><span>Failed</span><strong>{{ job_metrics.failed_jobs }}</strong></div>
+    <div class="settings-item"><span>Cancelled</span><strong>{{ job_metrics.cancelled_jobs }}</strong></div>
+    <div class="settings-item"><span>Queue Length</span><strong>{{ job_metrics.queue_length }}</strong></div>
+    <div class="settings-item"><span>Avg Job Time</span><strong>{{ job_metrics.average_execution_ms }} ms</strong></div>
+  </div>
+</section>
+
+<section class="panel">
   <div class="panel-head"><h3>Recent Workflow Durations</h3></div>
   {% if metrics_summary.recent_runs %}
   <div class="stack">
