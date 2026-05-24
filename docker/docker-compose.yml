@@ -1,20 +1,67 @@
+name: sentinelai
+
 services:
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    image: sentinelai-app:local
     container_name: sentinelai-app
-    working_dir: /workspace
-    command:
-      [
-        "python",
-        "main.py",
-        "phase2",
-        "--test",
-        "testcases/sample_test.json"
-      ]
+    restart: unless-stopped
+    expose:
+      - "8000"
     environment:
       SENTINELAI_BROWSER_HEADLESS: "true"
-      SENTINELAI_ARTIFACTS_DIR: /workspace/artifacts
+      SENTINELAI_ARTIFACTS_DIR: /app/artifacts
+      SENTINELAI_MEMORY_VECTOR_DB_PATH: /app/memory_store
+      SENTINELAI_MEMORY_ENABLED: "true"
+      SENTINELAI_MEMORY_EMBEDDING_PROVIDER: hashing
+      SENTINELAI_MEMORY_EMBEDDING_MODEL: hashing-384
+      SENTINELAI_MEMORY_TOP_K: "3"
+      SENTINELAI_MCP_ENABLED: "true"
+      SENTINELAI_MCP_TOOL_TRACING_ENABLED: "true"
+      SENTINELAI_MCP_ENABLED_TOOLS: browser,memory,validation
+      SENTINELAI_GRAPH_MAX_RETRIES: "2"
+      SENTINELAI_OLLAMA_ENDPOINT: http://host.docker.internal:11434/api/generate
+      SENTINELAI_OLLAMA_MODEL: llama3
+      SENTINELAI_OLLAMA_TIMEOUT_SECONDS: "60"
+      SENTINELAI_OLLAMA_MAX_ATTEMPTS: "3"
     volumes:
-      - ..:/workspace
+      - sentinelai_artifacts:/app/artifacts
+      - sentinelai_memory_store:/app/memory_store
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sentinelai-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sentinelai_artifacts:
+  sentinelai_memory_store:

@@ -70,6 +70,8 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Phase 8 | GitHub Actions CI pipeline | Complete |
 | Phase 9 | Optional FastAPI multi-page dashboard | Complete |
 | Phase 10 | Final documentation, demo assets, and GitHub packaging polish | Complete |
+| Phase 11 | Real dashboard screenshots and visual showcase assets | Complete |
+| Phase 12 | Local production Docker Compose and NGINX deployment foundation | Complete |
 
 ## Repository Layout
 
@@ -80,7 +82,7 @@ SentinelAI/
 |-- browser/            # Playwright execution and browser result models
 |-- config/             # Environment-driven runtime settings
 |-- dashboard/          # Optional FastAPI dashboard, templates, and static assets
-|-- docker/             # Dockerfile and compose setup
+|-- docker/             # Production-style Docker Compose, app image, and NGINX config
 |-- docs/               # Architecture, demo, troubleshooting, and screenshot placeholders
 |-- mcp_servers/        # MCP-style tool interfaces and registry
 |-- memory/             # Embeddings, vector store, and memory manager
@@ -260,13 +262,42 @@ GitHub Actions runs the same core checks on `push` and `pull_request` to `main`.
 
 ## Docker
 
-The repository includes a lightweight Docker scaffold:
+Phase 12 adds a local production-style Docker Compose stack:
 
-```bash
+```powershell
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-Today it runs a deterministic sample workflow. For LLM-backed flows, point the container at a reachable Ollama service.
+Open the dashboard through NGINX:
+
+```text
+http://127.0.0.1:8000
+```
+
+Health check:
+
+```powershell
+curl http://127.0.0.1:8000/health
+```
+
+Stop the stack:
+
+```powershell
+docker compose -f docker/docker-compose.yml down
+```
+
+The deployment uses:
+
+- `sentinelai-app`: FastAPI served by Gunicorn with Uvicorn workers
+- `sentinelai-nginx`: reverse proxy on localhost port `8000`
+- `sentinelai_artifacts`: persistent Docker volume for reports and screenshots
+- `sentinelai_memory_store`: persistent Docker volume for FAISS memory
+- `requirements-docker.txt`: slimmer deployment dependency profile using hashing embeddings
+- official Playwright Python runtime image for browser-ready container execution
+
+For LLM-backed flows inside Docker, run Ollama on the host and use the compose default endpoint `http://host.docker.internal:11434/api/generate`.
+
+Full deployment notes are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Screenshots
 
@@ -304,6 +335,7 @@ Additional dashboard screenshots are stored in [docs/screenshots](docs/screensho
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DEMO.md](docs/DEMO.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ## License / Usage

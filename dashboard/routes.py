@@ -89,6 +89,11 @@ def _json_not_found(message: str) -> JSONResponse:
     return JSONResponse({"error": message}, status_code=404)
 
 
+@router.get("/health", name="dashboard_health")
+async def health_check():
+    return {"status": "ok"}
+
+
 @router.get("/", response_class=HTMLResponse, name="dashboard_overview")
 async def overview_page(request: Request):
     settings = _settings(request)

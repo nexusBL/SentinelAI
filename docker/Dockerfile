@@ -1,15 +1,22 @@
-FROM python:3.11-slim
+FROM mcr.microsoft.com/playwright/python:v1.58.0-noble
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
 
-WORKDIR /workspace
+WORKDIR /app
 
-COPY requirements.txt /workspace/requirements.txt
+COPY requirements-docker.txt /app/requirements-docker.txt
 
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python -m playwright install --with-deps chromium
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
-COPY . /workspace
+COPY --chown=pwuser:pwuser . /app
 
-CMD ["python", "main.py", "phase2", "--test", "testcases/sample_test.json"]
+RUN mkdir -p /app/artifacts/runs /app/memory_store \
+    && chown -R pwuser:pwuser /app
+
+USER pwuser
+
+EXPOSE 8000
+
+CMD ["gunicorn", "dashboard.app:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

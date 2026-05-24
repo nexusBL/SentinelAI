@@ -22,6 +22,10 @@ def test_dashboard_app_imports_and_routes_exist(temp_settings):
 def test_dashboard_pages_render_empty_states(temp_settings):
     client = build_client(temp_settings)
 
+    health_response = client.get("/health")
+    assert health_response.status_code == 200
+    assert health_response.json() == {"status": "ok"}
+
     for path in ("/", "/new-run", "/runs", "/reports", "/memory", "/tools", "/metrics", "/settings"):
         response = client.get(path)
         assert response.status_code == 200
