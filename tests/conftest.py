@@ -101,6 +101,9 @@ def temp_settings(tmp_path: Path):
     settings.mcp.enabled = True
     settings.mcp.tool_tracing_enabled = True
     settings.mcp.enabled_tools = ("browser", "memory", "validation")
+    settings.auth.sqlite_path = tmp_path / "auth_store" / "sentinelai_auth.db"
+    settings.auth.jwt_secret = "test-secret-key-for-sentinelai-auth-tests"
+    settings.auth.secure_cookie = False
     return settings
 
 
@@ -155,6 +158,7 @@ def make_dashboard_run(temp_settings):
         include_screenshots: bool = True,
         include_memory_artifacts: bool = True,
         failure_reason: str | None = None,
+        owner_user_id: str | None = None,
     ) -> Path:
         run_dir = temp_settings.storage.runs_root / run_id
         (run_dir / "reports").mkdir(parents=True, exist_ok=True)
@@ -163,6 +167,19 @@ def make_dashboard_run(temp_settings):
         (run_dir / "planner").mkdir(parents=True, exist_ok=True)
         (run_dir / "screenshots").mkdir(parents=True, exist_ok=True)
         (run_dir / "logs").mkdir(parents=True, exist_ok=True)
+        (run_dir / "metadata").mkdir(parents=True, exist_ok=True)
+        if owner_user_id:
+            (run_dir / "metadata" / "owner.json").write_text(
+                json.dumps(
+                    {
+                        "owner_user_id": owner_user_id,
+                        "job_id": "test-job",
+                        "created_by": "test",
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
 
         created_at = datetime.now(timezone.utc).isoformat()
         report_payload = {

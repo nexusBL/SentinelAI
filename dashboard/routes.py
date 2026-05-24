@@ -11,6 +11,9 @@ from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from auth.models import User
+from auth.security import create_access_token
+from auth.security import decode_access_token
 from dashboard.services import dashboard_defaults
 from dashboard.services import SUPPORTED_MODES
 from dashboard.utils import build_memory_summary
@@ -52,6 +55,66 @@ def _job_manager(request: Request):
     return request.app.state.job_manager
 
 
+def _auth_service(request: Request):
+    return request.app.state.auth_service
+
+
+def _current_user(request: Request) -> User | None:
+    settings = _settings(request)
+    if not settings.auth.enabled:
+        return None
+    token = request.cookies.get(settings.auth.cookie_name)
+    if not token:
+        return None
+    payload = decode_access_token(settings.auth, token)
+    if payload is None:
+        return None
+    return _auth_service(request).get_user_by_id(str(payload["sub"]))
+
+
+def _auth_scope(user: User | None) -> dict[str, object]:
+    if user is None:
+        return {"owner_user_id": None, "include_all": True}
+    return {"owner_user_id": user.user_id, "include_all": user.is_admin}
+
+
+def _job_visible(job, user: User | None) -> bool:
+    if user is None:
+        return True
+    return user.is_admin or job.owner_user_id == user.user_id
+
+
+def _login_redirect(request: Request) -> RedirectResponse:
+    return RedirectResponse(
+        url=f"/login?next_path={request.url.path}",
+        status_code=303,
+    )
+
+
+def _safe_next_path(value: str | None) -> str:
+    if not value or not value.startswith("/") or value.startswith("//"):
+        return "/"
+    return value
+
+
+def _require_page_user(request: Request) -> User | RedirectResponse:
+    if not _settings(request).auth.enabled:
+        return None
+    user = _current_user(request)
+    if user is None:
+        return _login_redirect(request)
+    return user
+
+
+def _require_api_user(request: Request) -> User | JSONResponse:
+    if not _settings(request).auth.enabled:
+        return None
+    user = _current_user(request)
+    if user is None:
+        return JSONResponse({"error": "Authentication required."}, status_code=401)
+    return user
+
+
 def _render_page(
     request: Request,
     template_name: str,
@@ -60,6 +123,7 @@ def _render_page(
     status_code: int = 200,
     **context,
 ):
+    current_user = _current_user(request)
     return templates.TemplateResponse(
         request,
         template_name,
@@ -67,7 +131,8 @@ def _render_page(
             "active_page": active_page,
             "nav_items": NAV_ITEMS,
             "product_name": "SentinelAI",
-            "footer_note": "Phase 9 local-first dashboard",
+            "footer_note": "Local-first authenticated dashboard",
+            "current_user": current_user.public_dict() if current_user is not None else None,
             **context,
         },
         status_code=status_code,
@@ -100,20 +165,129 @@ async def health_check():
     return {"status": "ok"}
 
 
+@router.get("/login", response_class=HTMLResponse, name="dashboard_login")
+async def login_page(request: Request, next_path: str = "/"):
+    return _render_page(
+        request,
+        "login.html",
+        active_page="login",
+        next_path=next_path,
+        error=None,
+    )
+
+
+@router.post("/login", name="dashboard_login_submit")
+async def login_submit(
+    request: Request,
+    username_or_email: str = Form(...),
+    password: str = Form(...),
+    next_path: str = Form("/"),
+):
+    user = _auth_service(request).authenticate(
+        username_or_email=username_or_email,
+        password=password,
+    )
+    if user is None:
+        return _render_page(
+            request,
+            "login.html",
+            active_page="login",
+            status_code=401,
+            next_path=next_path,
+            error="Invalid username, email, or password.",
+        )
+    token = create_access_token(
+        settings=_settings(request).auth,
+        user_id=user.user_id,
+        role=user.role,
+    )
+    response = RedirectResponse(url=_safe_next_path(next_path), status_code=303)
+    response.set_cookie(
+        _settings(request).auth.cookie_name,
+        token,
+        httponly=True,
+        secure=_settings(request).auth.secure_cookie,
+        samesite="lax",
+        max_age=_settings(request).auth.token_expire_minutes * 60,
+    )
+    return response
+
+
+@router.get("/signup", response_class=HTMLResponse, name="dashboard_signup")
+async def signup_page(request: Request):
+    return _render_page(
+        request,
+        "signup.html",
+        active_page="signup",
+        error=None,
+    )
+
+
+@router.post("/signup", name="dashboard_signup_submit")
+async def signup_submit(
+    request: Request,
+    username: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+):
+    try:
+        user = _auth_service(request).create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+    except ValueError as exc:
+        return _render_page(
+            request,
+            "signup.html",
+            active_page="signup",
+            status_code=400,
+            error=str(exc),
+        )
+    token = create_access_token(
+        settings=_settings(request).auth,
+        user_id=user.user_id,
+        role=user.role,
+    )
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(
+        _settings(request).auth.cookie_name,
+        token,
+        httponly=True,
+        secure=_settings(request).auth.secure_cookie,
+        samesite="lax",
+        max_age=_settings(request).auth.token_expire_minutes * 60,
+    )
+    return response
+
+
+@router.get("/logout", name="dashboard_logout")
+async def logout(request: Request):
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(_settings(request).auth.cookie_name)
+    return response
+
+
 @router.get("/", response_class=HTMLResponse, name="dashboard_overview")
 async def overview_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
-    overview = build_overview(settings)
+    scope = _auth_scope(user)
     return _render_page(
         request,
         "index.html",
         active_page="overview",
-        overview=overview,
+        overview=build_overview(settings, **scope),
     )
 
 
 @router.get("/new-run", response_class=HTMLResponse, name="dashboard_new_run")
 async def new_run_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
@@ -134,6 +308,9 @@ async def run_submit(
     memory_enabled: str | None = Form(None),
     mcp_enabled: str | None = Form(None),
 ):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     try:
         job = await _job_manager(request).submit(
             JobRequest(
@@ -144,7 +321,8 @@ async def run_submit(
                 max_retries=max_retries,
                 memory_enabled=memory_enabled is not None,
                 mcp_enabled=mcp_enabled is not None,
-            )
+            ),
+            owner_user_id=user.user_id if user else None,
         )
     except ValueError as exc:
         return _page_error(
@@ -169,23 +347,30 @@ async def run_submit(
 
 @router.get("/runs", response_class=HTMLResponse, name="dashboard_runs")
 async def runs_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
+    scope = _auth_scope(user)
     return _render_page(
         request,
         "runs.html",
         active_page="runs",
-        runs=list_runs(settings),
+        runs=list_runs(settings, **scope),
         active_jobs=[
             job.to_dict()
-            for job in await _job_manager(request).active_jobs()
+            for job in await _job_manager(request).active_jobs(**scope)
         ],
     )
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse, name="dashboard_job_detail")
 async def job_detail_page(request: Request, job_id: str):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     job = await _job_manager(request).get(job_id)
-    if job is None:
+    if job is None or not _job_visible(job, user):
         return _page_error(
             request,
             title="Job Not Found",
@@ -202,8 +387,11 @@ async def job_detail_page(request: Request, job_id: str):
 
 @router.get("/runs/{run_id}", response_class=HTMLResponse, name="dashboard_run_detail")
 async def run_detail_page(request: Request, run_id: str):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _page_error(
             request,
@@ -221,51 +409,66 @@ async def run_detail_page(request: Request, run_id: str):
 
 @router.get("/reports", response_class=HTMLResponse, name="dashboard_reports")
 async def reports_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
         "reports.html",
         active_page="reports",
-        reports=list_reports(settings),
+        reports=list_reports(settings, **_auth_scope(user)),
     )
 
 
 @router.get("/memory", response_class=HTMLResponse, name="dashboard_memory")
 async def memory_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
         "memory.html",
         active_page="memory",
-        memory_summary=build_memory_summary(settings),
+        memory_summary=build_memory_summary(settings, **_auth_scope(user)),
     )
 
 
 @router.get("/tools", response_class=HTMLResponse, name="dashboard_tools")
 async def tools_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
         "tools.html",
         active_page="tools",
-        tools_summary=build_tools_summary(settings),
+        tools_summary=build_tools_summary(settings, **_auth_scope(user)),
     )
 
 
 @router.get("/metrics", response_class=HTMLResponse, name="dashboard_metrics")
 async def metrics_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
         "metrics.html",
         active_page="metrics",
-        metrics_summary=build_metrics_summary(settings),
+        metrics_summary=build_metrics_summary(settings, **_auth_scope(user)),
         job_metrics=await _job_manager(request).metrics(),
     )
 
 
 @router.get("/settings", response_class=HTMLResponse, name="dashboard_settings")
 async def settings_page(request: Request):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     return _render_page(
         request,
@@ -277,9 +480,12 @@ async def settings_page(request: Request):
 
 @router.get("/runs/{run_id}/report-html", response_class=HTMLResponse, name="dashboard_report_html")
 async def report_html_page(request: Request, run_id: str):
+    user = _require_page_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
     settings = _settings(request)
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
-    if run_dir is None:
+    if run_dir is None or get_run_detail(settings, run_id, **_auth_scope(user)) is None:
         return _page_error(
             request,
             title="Report Not Found",
@@ -299,9 +505,12 @@ async def report_html_page(request: Request, run_id: str):
 
 @router.get("/runs/{run_id}/screenshots/{file_name}", name="dashboard_run_screenshot")
 async def run_screenshot(request: Request, run_id: str, file_name: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
-    if run_dir is None:
+    if run_dir is None or get_run_detail(settings, run_id, **_auth_scope(user)) is None:
         return _json_not_found("Run not found.")
     if Path(file_name).name != file_name:
         return _json_not_found("Screenshot not found.")
@@ -315,8 +524,11 @@ async def run_screenshot(request: Request, run_id: str, file_name: str):
 
 @router.get("/api/runs", name="api_runs")
 async def api_runs(request: Request):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    return JSONResponse({"runs": list_runs(settings)})
+    return JSONResponse({"runs": list_runs(settings, **_auth_scope(user))})
 
 
 @router.post("/api/jobs", name="api_create_job")
@@ -324,6 +536,9 @@ async def api_create_job(
     request: Request,
     payload: dict,
 ):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     try:
         mode_value = str(payload.get("mode", "phase6"))
         if mode_value not in SUPPORTED_MODES:
@@ -339,7 +554,10 @@ async def api_create_job(
         )
         if not job_request.url or not job_request.instruction:
             raise ValueError("Both url and instruction are required.")
-        job = await _job_manager(request).submit(job_request)
+        job = await _job_manager(request).submit(
+            job_request,
+            owner_user_id=user.user_id if user else None,
+        )
     except (TypeError, ValueError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse({"job": job.to_dict()}, status_code=202)
@@ -347,32 +565,47 @@ async def api_create_job(
 
 @router.get("/api/jobs", name="api_list_jobs")
 async def api_list_jobs(request: Request):
-    jobs = [job.to_dict() for job in await _job_manager(request).list_jobs()]
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
+    jobs = [job.to_dict() for job in await _job_manager(request).list_jobs(**_auth_scope(user))]
     return JSONResponse({"jobs": jobs})
 
 
 @router.get("/api/jobs/active", name="api_active_jobs")
 async def api_active_jobs(request: Request):
-    jobs = [job.to_dict() for job in await _job_manager(request).active_jobs()]
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
+    jobs = [job.to_dict() for job in await _job_manager(request).active_jobs(**_auth_scope(user))]
     return JSONResponse({"jobs": jobs})
 
 
 @router.get("/api/jobs/metrics", name="api_job_metrics")
 async def api_job_metrics(request: Request):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     return JSONResponse(await _job_manager(request).metrics())
 
 
 @router.get("/api/jobs/{job_id}", name="api_job_status")
 async def api_job_status(request: Request, job_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     job = await _job_manager(request).get(job_id)
-    if job is None:
+    if job is None or not _job_visible(job, user):
         return _json_not_found("Job not found.")
     return JSONResponse({"job": job.to_dict()})
 
 
 @router.post("/api/jobs/{job_id}/cancel", name="api_cancel_job")
 async def api_cancel_job(request: Request, job_id: str):
-    job = await _job_manager(request).cancel(job_id)
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
+    job = await _job_manager(request).cancel(job_id, **_auth_scope(user))
     if job is None:
         return _json_not_found("Job not found.")
     return JSONResponse({"job": job.to_dict()})
@@ -380,8 +613,11 @@ async def api_cancel_job(request: Request, job_id: str):
 
 @router.get("/api/runs/{run_id}/report", name="api_run_report")
 async def api_run_report(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _json_not_found("Run not found.")
     return JSONResponse({"run_id": run_id, "report": detail["report"], "error": detail["report_error"]})
@@ -389,8 +625,11 @@ async def api_run_report(request: Request, run_id: str):
 
 @router.get("/api/runs/{run_id}/graph-trace", name="api_run_graph_trace")
 async def api_run_graph_trace(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _json_not_found("Run not found.")
     return JSONResponse({"run_id": run_id, "graph_trace": detail["graph_trace"], "error": detail["graph_trace_error"]})
@@ -398,8 +637,11 @@ async def api_run_graph_trace(request: Request, run_id: str):
 
 @router.get("/api/runs/{run_id}/planner-trace", name="api_run_planner_trace")
 async def api_run_planner_trace(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _json_not_found("Run not found.")
     return JSONResponse({"run_id": run_id, "planner_trace": detail["planner_trace"], "error": detail["planner_trace_error"]})
@@ -407,8 +649,11 @@ async def api_run_planner_trace(request: Request, run_id: str):
 
 @router.get("/api/runs/{run_id}/tool-trace", name="api_run_tool_trace")
 async def api_run_tool_trace(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _json_not_found("Run not found.")
     return JSONResponse({"run_id": run_id, "tool_trace": detail["tool_trace"], "error": detail["tool_trace_error"]})
@@ -416,8 +661,11 @@ async def api_run_tool_trace(request: Request, run_id: str):
 
 @router.get("/api/runs/{run_id}/metrics", name="api_run_metrics")
 async def api_run_metrics(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    detail = get_run_detail(settings, run_id)
+    detail = get_run_detail(settings, run_id, **_auth_scope(user))
     if detail is None:
         return _json_not_found("Run not found.")
     return JSONResponse({"run_id": run_id, "metrics": detail["metrics"], "error": detail["metrics_error"]})
@@ -425,8 +673,11 @@ async def api_run_metrics(request: Request, run_id: str):
 
 @router.get("/api/runs/{run_id}/screenshots", name="api_run_screenshots")
 async def api_run_screenshots(request: Request, run_id: str):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    screenshots = list_api_screenshots(settings, run_id)
+    screenshots = list_api_screenshots(settings, run_id, **_auth_scope(user))
     if screenshots is None:
         return _json_not_found("Run not found.")
     return JSONResponse(screenshots)
@@ -434,19 +685,28 @@ async def api_run_screenshots(request: Request, run_id: str):
 
 @router.get("/api/memory/summary", name="api_memory_summary")
 async def api_memory_summary(request: Request):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    return JSONResponse(build_memory_summary(settings))
+    return JSONResponse(build_memory_summary(settings, **_auth_scope(user)))
 
 
 @router.get("/api/tools/summary", name="api_tools_summary")
 async def api_tools_summary(request: Request):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    return JSONResponse(build_tools_summary(settings))
+    return JSONResponse(build_tools_summary(settings, **_auth_scope(user)))
 
 
 @router.get("/api/metrics/summary", name="api_metrics_summary")
 async def api_metrics_summary(request: Request):
+    user = _require_api_user(request)
+    if isinstance(user, JSONResponse):
+        return user
     settings = _settings(request)
-    payload = build_metrics_summary(settings)
+    payload = build_metrics_summary(settings, **_auth_scope(user))
     payload["jobs"] = await _job_manager(request).metrics()
     return JSONResponse(payload)

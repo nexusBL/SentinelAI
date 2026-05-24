@@ -74,6 +74,16 @@ class MCPSettings:
 
 
 @dataclass(slots=True)
+class AuthSettings:
+    enabled: bool
+    sqlite_path: Path
+    jwt_secret: str
+    token_expire_minutes: int
+    cookie_name: str
+    secure_cookie: bool
+
+
+@dataclass(slots=True)
 class AppSettings:
     browser: BrowserSettings
     storage: StorageSettings
@@ -81,6 +91,7 @@ class AppSettings:
     graph: GraphSettings
     memory: MemorySettings
     mcp: MCPSettings
+    auth: AuthSettings
 
 
 def load_settings(project_root: Path | None = None) -> AppSettings:
@@ -96,6 +107,12 @@ def load_settings(project_root: Path | None = None) -> AppSettings:
     )
     if not memory_store_path.is_absolute():
         memory_store_path = resolved_root / memory_store_path
+
+    auth_sqlite_path = Path(
+        os.getenv("SENTINELAI_AUTH_SQLITE_PATH", str(resolved_root / "auth_store" / "sentinelai_auth.db"))
+    )
+    if not auth_sqlite_path.is_absolute():
+        auth_sqlite_path = resolved_root / auth_sqlite_path
 
     return AppSettings(
         browser=BrowserSettings(
@@ -145,5 +162,16 @@ def load_settings(project_root: Path | None = None) -> AppSettings:
                 "SENTINELAI_MCP_ENABLED_TOOLS",
                 ("browser", "memory", "validation"),
             ),
+        ),
+        auth=AuthSettings(
+            enabled=_get_bool("SENTINELAI_AUTH_ENABLED", True),
+            sqlite_path=auth_sqlite_path,
+            jwt_secret=os.getenv(
+                "SENTINELAI_AUTH_JWT_SECRET",
+                "sentinelai-local-dev-change-me-at-least-32-bytes",
+            ),
+            token_expire_minutes=_get_int("SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES", 1440),
+            cookie_name=os.getenv("SENTINELAI_AUTH_COOKIE_NAME", "sentinelai_session"),
+            secure_cookie=_get_bool("SENTINELAI_AUTH_SECURE_COOKIE", False),
         ),
     )

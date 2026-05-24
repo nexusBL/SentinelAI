@@ -18,14 +18,15 @@ Now the dashboard creates a job immediately, returns a job status page, and lets
 | `failed` | The workflow raised an error or returned failed status |
 | `cancelled` | The job was cancelled before execution, or cancellation was requested |
 
-Each job tracks the request, timestamps, progress metadata, failure reason, and final `run_id` when available.
+Each job tracks the request, timestamps, progress metadata, failure reason, final `run_id` when available, and the owning `user_id` when created from an authenticated dashboard session.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     Form[Dashboard New Run Form] --> API[FastAPI Route]
-    API --> Manager[JobManager]
+    API --> Auth[Current User Scope]
+    Auth --> Manager[JobManager]
     Manager --> Queue[In-Process Queue]
     Queue --> Worker[Background Worker]
     Worker --> Workflow[Existing SentinelAI Workflow]
@@ -54,6 +55,8 @@ Multiple jobs can be queued, and the worker processes them one at a time.
 5. When execution finishes, the job links to `/runs/<run_id>`.
 
 The Runs page also shows queued and running jobs above historical artifact-backed runs.
+
+Phase 14 adds user isolation. Normal users only see their own jobs and runs. Admin users can inspect all jobs and runs, which keeps older CLI-generated artifacts visible to the first local account.
 
 ## API Endpoints
 

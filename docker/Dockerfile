@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements-docker.txt
 
 COPY --chown=pwuser:pwuser . /app
 
-RUN mkdir -p /app/artifacts/runs /app/memory_store \
+RUN mkdir -p /app/artifacts/runs /app/memory_store /app/auth_store \
     && chown -R pwuser:pwuser /app \
     && chmod +x /app/docker/entrypoint.sh
 

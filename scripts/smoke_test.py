@@ -26,6 +26,7 @@ def main() -> int:
         settings.storage.artifacts_root = temp_root / "artifacts"
         settings.storage.runs_root = settings.storage.artifacts_root / "runs"
         settings.memory.vector_db_path = temp_root / "memory_store"
+        settings.auth.sqlite_path = temp_root / "auth_store" / "sentinelai_auth.db"
 
         sample_test_path = repo_root / "testcases" / "sample_test.json"
         failing_test_path = repo_root / "testcases" / "failing_sample_test.json"
@@ -56,6 +57,8 @@ def main() -> int:
             "registered_mcp_servers": workflow.mcp_registry.available_servers(),
             "dashboard_loaded": dashboard_app is not None,
             "dashboard_route_count": len(dashboard_app.router.routes),
+            "auth_enabled": settings.auth.enabled,
+            "auth_store_path": str(settings.auth.sqlite_path),
             "job_manager_loaded": job_manager is not None,
             "job_worker_running": job_metrics["worker_running"],
             "job_queue_length": job_metrics["queue_length"],

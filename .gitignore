@@ -6,9 +6,11 @@ __pycache__/
 .ruff_cache/
 .ci_artifacts/
 .ci_memory_store/
+.ci_auth_store/
 
 artifacts/runs/
 playwright-report/
 memory_store/
+auth_store/
 
 .env

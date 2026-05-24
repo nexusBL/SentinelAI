@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up | SentinelAI{% endblock %}
+{% block page_heading %}Create Account{% endblock %}
+{% block page_subtitle %}Create a local SentinelAI user for isolated jobs, runs, and dashboard views.{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <div class="panel-head">
+    <h3>Local Account</h3>
+  </div>
+  {% if error %}
+  <div class="notice danger">{{ error }}</div>
+  {% endif %}
+  <form class="run-form" method="post" action="/signup">
+    <label>
+      <span>Username</span>
+      <input type="text" name="username" autocomplete="username" required />
+    </label>
+    <label>
+      <span>Email</span>
+      <input type="email" name="email" autocomplete="email" required />
+    </label>
+    <label>
+      <span>Password</span>
+      <input type="password" name="password" autocomplete="new-password" minlength="8" required />
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Create Account</button>
+      <p class="form-note">Already have an account? <a class="text-link" href="/login">Login</a>.</p>
+    </div>
+  </form>
+</section>
+{% endblock %}

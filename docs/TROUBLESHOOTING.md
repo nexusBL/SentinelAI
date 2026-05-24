@@ -63,6 +63,31 @@ python scripts/smoke_test.py
 
 Also confirm FastAPI dependencies such as `jinja2` and `python-multipart` are installed.
 
+## Cannot Log In
+
+Symptoms:
+
+- login keeps returning "Invalid username, email, or password"
+- you forgot the local demo password
+- the first admin account was created accidentally
+
+Local development fix:
+
+```powershell
+Remove-Item -Recurse -Force auth_store
+```
+
+Then restart the dashboard and sign up again. The first new account becomes admin.
+
+Docker fix:
+
+```powershell
+docker compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml up --build
+```
+
+This resets all Docker named volumes, including users, artifacts, and memory.
+
 ## CI Failure
 
 Start with the local parity check:

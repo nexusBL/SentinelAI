@@ -12,6 +12,20 @@ def build_client(temp_settings) -> TestClient:
     return TestClient(create_app(temp_settings))
 
 
+def login(client: TestClient, *, username: str = "alice", email: str = "alice@example.com"):
+    response = client.post(
+        "/signup",
+        data={
+            "username": username,
+            "email": email,
+            "password": "password123",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    return response
+
+
 def test_dashboard_app_imports_and_routes_exist(temp_settings):
     client = build_client(temp_settings)
 
@@ -23,6 +37,7 @@ def test_dashboard_app_imports_and_routes_exist(temp_settings):
 
 def test_dashboard_pages_render_empty_states(temp_settings):
     client = build_client(temp_settings)
+    login(client)
 
     health_response = client.get("/health")
     assert health_response.status_code == 200
@@ -39,9 +54,11 @@ def test_dashboard_pages_render_empty_states(temp_settings):
 
 
 def test_dashboard_run_routes_and_apis_handle_sample_artifacts(temp_settings, make_dashboard_run):
-    run_id = "20260520T123000000000Z"
-    make_dashboard_run(run_id=run_id)
     client = build_client(temp_settings)
+    auth_response = login(client)
+    user_id = client.app.state.auth_service.get_user_by_username_or_email("alice").user_id
+    run_id = "20260520T123000000000Z"
+    make_dashboard_run(run_id=run_id, owner_user_id=user_id)
 
     detail_response = client.get(f"/runs/{run_id}")
     report_response = client.get(f"/api/runs/{run_id}/report")
@@ -76,6 +93,7 @@ def test_dashboard_run_routes_and_apis_handle_sample_artifacts(temp_settings, ma
 
 def test_dashboard_invalid_run_ids_return_safe_errors(temp_settings):
     client = build_client(temp_settings)
+    login(client)
 
     detail_response = client.get("/runs/not-a-valid-run-id")
     report_response = client.get("/api/runs/not-a-valid-run-id/report")
@@ -89,9 +107,11 @@ def test_dashboard_invalid_run_ids_return_safe_errors(temp_settings):
 
 
 def test_dashboard_screenshot_route_rejects_path_traversal(temp_settings, make_dashboard_run):
-    run_id = "20260520T124000000000Z"
-    make_dashboard_run(run_id=run_id)
     client = build_client(temp_settings)
+    login(client)
+    user_id = client.app.state.auth_service.get_user_by_username_or_email("alice").user_id
+    run_id = "20260520T124000000000Z"
+    make_dashboard_run(run_id=run_id, owner_user_id=user_id)
 
     response = client.get(f"/runs/{run_id}/screenshots/..%5Csecret.png")
 
@@ -101,6 +121,8 @@ def test_dashboard_screenshot_route_rejects_path_traversal(temp_settings, make_d
 
 def test_dashboard_job_page_and_apis_work(temp_settings, monkeypatch):
     client = build_client(temp_settings)
+    login(client)
+    user_id = client.app.state.auth_service.get_user_by_username_or_email("alice").user_id
     job = JobRecord(
         request=JobRequest(
             mode="phase6",
@@ -108,25 +130,33 @@ def test_dashboard_job_page_and_apis_work(temp_settings, monkeypatch):
             instruction="Test homepage",
         ),
         job_id="job-123",
+        owner_user_id=user_id,
         status="queued",
         progress={"message": "Queued for execution", "stage": "queued", "percent": 0},
     )
 
     class FakeManager:
-        async def submit(self, request):
+        async def submit(self, request, *, owner_user_id=None):
             assert request.mode == "phase6"
+            job.owner_user_id = owner_user_id
             return job
 
         async def get(self, job_id):
             return job if job_id == job.job_id else None
 
-        async def list_jobs(self):
+        async def list_jobs(self, owner_user_id=None, include_all=True):
+            if not include_all and owner_user_id != job.owner_user_id:
+                return []
             return [job]
 
-        async def active_jobs(self):
+        async def active_jobs(self, owner_user_id=None, include_all=True):
+            if not include_all and owner_user_id != job.owner_user_id:
+                return []
             return [job]
 
-        async def cancel(self, job_id):
+        async def cancel(self, job_id, owner_user_id=None, include_all=True):
+            if not include_all and owner_user_id != job.owner_user_id:
+                return None
             job.status = "cancelled"
             return job
 
@@ -181,6 +211,7 @@ def test_dashboard_job_page_and_apis_work(temp_settings, monkeypatch):
 
 def test_dashboard_run_submit_returns_friendly_error_page(temp_settings, monkeypatch):
     client = build_client(temp_settings)
+    login(client)
 
     class FakeManager:
         async def submit(self, request):

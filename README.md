@@ -34,7 +34,9 @@ The result is a strong portfolio project for AI systems, platform engineering, a
 ```mermaid
 flowchart LR
     U[User Instruction] --> UI[CLI or FastAPI Dashboard]
-    UI --> G[LangGraph Workflow]
+    UI --> AUTH[JWT Auth and User Scope]
+    AUTH --> J[Async Job Queue]
+    J --> G[LangGraph Workflow]
     G --> MR[Memory Retrieval]
     MR --> P[Ollama Planner]
     P --> MCP[MCP Tool Layer]
@@ -73,6 +75,7 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Phase 11 | Real dashboard screenshots and visual showcase assets | Complete |
 | Phase 12 | Local production Docker Compose and NGINX deployment foundation | Complete |
 | Phase 13 | Async job queue, background worker, and live dashboard polling | Complete |
+| Phase 14 | JWT authentication, SQLite users, and user-isolated jobs/runs | Complete |
 
 ## Repository Layout
 
@@ -80,6 +83,7 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 SentinelAI/
 |-- ai/                 # Ollama HTTP client
 |-- agents/             # Planner and LangGraph orchestration
+|-- auth/               # SQLite users, bcrypt passwords, and JWT helpers
 |-- browser/            # Playwright execution and browser result models
 |-- config/             # Environment-driven runtime settings
 |-- dashboard/          # Optional FastAPI dashboard, templates, and static assets
@@ -174,6 +178,8 @@ The dashboard remains optional. The CLI is still the primary backend interface, 
 
 Phase 13 makes dashboard execution asynchronous. New Run submissions create a background job immediately, redirect to `/jobs/<job_id>`, and poll the local API until a final `run_id` is available.
 
+Phase 14 protects the dashboard with local signup/login. The first account becomes an admin, later accounts are normal users, and dashboard jobs/runs are scoped to their owner.
+
 ## Demo Flow
 
 This is the fastest showcase path for GitHub visitors or interview demos:
@@ -234,9 +240,11 @@ Common outputs include:
 - `metrics/execution_metrics.json`
 - `screenshots/*.png`
 - `logs/page_dom.html`
+- `metadata/owner.json` for authenticated dashboard-created runs
 - planner raw response and normalized test plan files
 
 Persistent memory is stored separately under `memory_store/` by default.
+Local users are stored under `auth_store/` by default.
 
 ## Testing and Quality Gates
 
@@ -261,6 +269,7 @@ What the quality system covers:
 - reporting and artifact writing
 - dashboard route and utility safety
 - async job lifecycle and dashboard polling APIs
+- signup, login, JWT validation, protected routes, and ownership boundaries
 - backward compatibility of the CLI
 
 GitHub Actions runs the same core checks on `push` and `pull_request` to `main`.
@@ -297,6 +306,7 @@ The deployment uses:
 - `sentinelai-nginx`: reverse proxy on localhost port `8000`
 - `sentinelai_artifacts`: persistent Docker volume for reports and screenshots
 - `sentinelai_memory_store`: persistent Docker volume for FAISS memory
+- `sentinelai_auth_store`: persistent Docker volume for SQLite users
 - `requirements-docker.txt`: slimmer deployment dependency profile using hashing embeddings
 - official Playwright Python runtime image for browser-ready container execution
 
@@ -333,12 +343,14 @@ Additional dashboard screenshots are stored in [docs/screenshots](docs/screensho
 - persistent vector memory with retrieval-augmented planning
 - MCP-style tool abstraction for browser, memory, and validation capabilities
 - product-style dashboard layered cleanly over the CLI/runtime
+- JWT auth and user-isolated local resources without rewriting the workflow engine
 - offline-friendly tests, smoke checks, and GitHub CI
 - modular architecture designed for future hosted UI, additional tools, or cloud execution
 
 ## Additional Docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/AUTH.md](docs/AUTH.md)
 - [docs/DEMO.md](docs/DEMO.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/JOBS.md](docs/JOBS.md)

@@ -26,6 +26,12 @@ ENV_KEYS = [
     "SENTINELAI_MCP_TOOL_TRACING_ENABLED",
     "SENTINELAI_MCP_TIMEOUT_SECONDS",
     "SENTINELAI_MCP_ENABLED_TOOLS",
+    "SENTINELAI_AUTH_ENABLED",
+    "SENTINELAI_AUTH_SQLITE_PATH",
+    "SENTINELAI_AUTH_JWT_SECRET",
+    "SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES",
+    "SENTINELAI_AUTH_COOKIE_NAME",
+    "SENTINELAI_AUTH_SECURE_COOKIE",
 ]
 
 
@@ -54,6 +60,12 @@ def test_load_settings_uses_expected_defaults(monkeypatch, tmp_path: Path):
     assert settings.mcp.tool_tracing_enabled is True
     assert settings.mcp.timeout_seconds == 90
     assert settings.mcp.enabled_tools == ("browser", "memory", "validation")
+    assert settings.auth.enabled is True
+    assert settings.auth.sqlite_path == tmp_path / "auth_store" / "sentinelai_auth.db"
+    assert len(settings.auth.jwt_secret) >= 32
+    assert settings.auth.token_expire_minutes == 1440
+    assert settings.auth.cookie_name == "sentinelai_session"
+    assert settings.auth.secure_cookie is False
     assert settings.storage.artifacts_root == tmp_path / "artifacts"
     assert settings.storage.runs_root == tmp_path / "artifacts" / "runs"
 
@@ -79,6 +91,12 @@ def test_load_settings_reads_env_overrides(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("SENTINELAI_MCP_TOOL_TRACING_ENABLED", "false")
     monkeypatch.setenv("SENTINELAI_MCP_TIMEOUT_SECONDS", "120")
     monkeypatch.setenv("SENTINELAI_MCP_ENABLED_TOOLS", "browser,validation")
+    monkeypatch.setenv("SENTINELAI_AUTH_ENABLED", "false")
+    monkeypatch.setenv("SENTINELAI_AUTH_SQLITE_PATH", "custom_auth/auth.db")
+    monkeypatch.setenv("SENTINELAI_AUTH_JWT_SECRET", "custom-test-secret-with-enough-length")
+    monkeypatch.setenv("SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES", "30")
+    monkeypatch.setenv("SENTINELAI_AUTH_COOKIE_NAME", "custom_session")
+    monkeypatch.setenv("SENTINELAI_AUTH_SECURE_COOKIE", "true")
 
     settings = load_settings(project_root=tmp_path)
 
@@ -102,3 +120,9 @@ def test_load_settings_reads_env_overrides(monkeypatch, tmp_path: Path):
     assert settings.mcp.tool_tracing_enabled is False
     assert settings.mcp.timeout_seconds == 120
     assert settings.mcp.enabled_tools == ("browser", "validation")
+    assert settings.auth.enabled is False
+    assert settings.auth.sqlite_path == tmp_path / "custom_auth" / "auth.db"
+    assert settings.auth.jwt_secret == "custom-test-secret-with-enough-length"
+    assert settings.auth.token_expire_minutes == 30
+    assert settings.auth.cookie_name == "custom_session"
+    assert settings.auth.secure_cookie is True

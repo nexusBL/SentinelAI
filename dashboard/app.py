@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from auth.service import AuthService
 from config.settings import AppSettings
 from config.settings import load_settings
 from dashboard.routes import router
@@ -18,6 +19,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.job_manager = JobManager(resolved_settings)
+        app.state.auth_service = AuthService(resolved_settings.auth)
         await app.state.job_manager.start()
         try:
             yield
@@ -31,6 +33,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.state.job_manager = JobManager(resolved_settings)
+    app.state.auth_service = AuthService(resolved_settings.auth)
     app.mount(
         "/static",
         StaticFiles(directory=str(Path(__file__).parent / "static")),

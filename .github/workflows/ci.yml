@@ -22,6 +22,8 @@ jobs:
       SENTINELAI_OLLAMA_ENDPOINT: "http://localhost:11434/api/generate"
       SENTINELAI_OLLAMA_MODEL: "llama3"
       SENTINELAI_MCP_TOOL_TRACING_ENABLED: "false"
+      SENTINELAI_AUTH_SQLITE_PATH: ".ci_auth_store/sentinelai_auth.db"
+      SENTINELAI_AUTH_JWT_SECRET: "sentinelai-ci-test-secret-with-enough-length"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

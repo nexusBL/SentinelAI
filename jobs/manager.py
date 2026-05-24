@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable
 from collections.abc import Callable
 from typing import Any
@@ -42,10 +43,11 @@ class JobManager:
             pass
         self._worker_task = None
 
-    async def submit(self, request: JobRequest) -> JobRecord:
+    async def submit(self, request: JobRequest, *, owner_user_id: str | None = None) -> JobRecord:
         await self.start()
         job = JobRecord(
             request=request,
+            owner_user_id=owner_user_id,
             progress={
                 "message": "Queued for execution",
                 "stage": "queued",
@@ -61,19 +63,39 @@ class JobManager:
         async with self._lock:
             return self._jobs.get(job_id)
 
-    async def list_jobs(self) -> list[JobRecord]:
+    async def list_jobs(
+        self,
+        *,
+        owner_user_id: str | None = None,
+        include_all: bool = True,
+    ) -> list[JobRecord]:
         async with self._lock:
             jobs = list(self._jobs.values())
+        if not include_all:
+            jobs = [job for job in jobs if job.owner_user_id == owner_user_id]
         return sorted(jobs, key=lambda item: item.created_at, reverse=True)
 
-    async def active_jobs(self) -> list[JobRecord]:
-        jobs = await self.list_jobs()
+    async def active_jobs(
+        self,
+        *,
+        owner_user_id: str | None = None,
+        include_all: bool = True,
+    ) -> list[JobRecord]:
+        jobs = await self.list_jobs(owner_user_id=owner_user_id, include_all=include_all)
         return [job for job in jobs if job.status in {"queued", "running"}]
 
-    async def cancel(self, job_id: str) -> JobRecord | None:
+    async def cancel(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str | None = None,
+        include_all: bool = True,
+    ) -> JobRecord | None:
         async with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
+                return None
+            if not include_all and job.owner_user_id != owner_user_id:
                 return None
             if job.status == "queued":
                 job.status = "cancelled"
@@ -162,6 +184,8 @@ class JobManager:
             job.result_summary = summary
             run_id = summary.get("run_id") if isinstance(summary, dict) else None
             job.run_id = run_id if isinstance(run_id, str) else None
+            if job.run_id and job.owner_user_id:
+                self._write_run_owner(job)
             job.completed_at = utc_now()
             status = str(summary.get("status", "")).lower() if isinstance(summary, dict) else ""
             if status in {"failed", "error"}:
@@ -182,3 +206,20 @@ class JobManager:
                 "stage": stage,
                 "percent": 100,
             }
+
+    def _write_run_owner(self, job: JobRecord) -> None:
+        if not job.run_id or not job.owner_user_id:
+            return
+        metadata_dir = self.settings.storage.runs_root / job.run_id / "metadata"
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        (metadata_dir / "owner.json").write_text(
+            json.dumps(
+                {
+                    "owner_user_id": job.owner_user_id,
+                    "job_id": job.job_id,
+                    "created_by": "dashboard",
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )

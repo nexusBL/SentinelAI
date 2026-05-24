@@ -47,6 +47,7 @@ class JobRequest:
 @dataclass(slots=True)
 class JobRecord:
     request: JobRequest
+    owner_user_id: str | None = None
     job_id: str = field(default_factory=lambda: uuid4().hex)
     status: JobStatus = "queued"
     created_at: datetime = field(default_factory=utc_now)
@@ -67,6 +68,7 @@ class JobRecord:
     def to_dict(self) -> dict[str, Any]:
         return {
             "job_id": self.job_id,
+            "owner_user_id": self.owner_user_id,
             "status": self.status,
             "created_at": isoformat(self.created_at),
             "started_at": isoformat(self.started_at),

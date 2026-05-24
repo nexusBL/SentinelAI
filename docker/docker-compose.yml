@@ -21,6 +21,12 @@ services:
       SENTINELAI_MCP_ENABLED: "true"
       SENTINELAI_MCP_TOOL_TRACING_ENABLED: "true"
       SENTINELAI_MCP_ENABLED_TOOLS: browser,memory,validation
+      SENTINELAI_AUTH_ENABLED: "true"
+      SENTINELAI_AUTH_SQLITE_PATH: /app/auth_store/sentinelai_auth.db
+      SENTINELAI_AUTH_JWT_SECRET: sentinelai-local-docker-change-this-secret
+      SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES: "1440"
+      SENTINELAI_AUTH_COOKIE_NAME: sentinelai_session
+      SENTINELAI_AUTH_SECURE_COOKIE: "false"
       SENTINELAI_GRAPH_MAX_RETRIES: "2"
       SENTINELAI_OLLAMA_ENDPOINT: http://host.docker.internal:11434/api/generate
       SENTINELAI_OLLAMA_MODEL: llama3
@@ -29,6 +35,7 @@ services:
     volumes:
       - sentinelai_artifacts:/app/artifacts
       - sentinelai_memory_store:/app/memory_store
+      - sentinelai_auth_store:/app/auth_store
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -65,3 +72,4 @@ services:
 volumes:
   sentinelai_artifacts:
   sentinelai_memory_store:
+  sentinelai_auth_store:

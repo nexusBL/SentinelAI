@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Login | SentinelAI{% endblock %}
+{% block page_heading %}Login{% endblock %}
+{% block page_subtitle %}Access your SentinelAI runs, jobs, memory, tools, and metrics.{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <div class="panel-head">
+    <h3>Welcome Back</h3>
+  </div>
+  {% if error %}
+  <div class="notice danger">{{ error }}</div>
+  {% endif %}
+  <form class="run-form" method="post" action="/login">
+    <input type="hidden" name="next_path" value="{{ next_path }}" />
+    <label>
+      <span>Username or Email</span>
+      <input type="text" name="username_or_email" autocomplete="username" required />
+    </label>
+    <label>
+      <span>Password</span>
+      <input type="password" name="password" autocomplete="current-password" required />
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Login</button>
+      <p class="form-note">New here? <a class="text-link" href="/signup">Create an account</a>.</p>
+    </div>
+  </form>
+</section>
+{% endblock %}

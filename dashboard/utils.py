@@ -97,6 +97,27 @@ def resolve_run_dir(runs_root: Path, run_id: str) -> Path | None:
     return candidate
 
 
+def get_run_owner_id(run_dir: Path) -> str | None:
+    payload, _ = safe_load_json(run_dir / "metadata" / "owner.json")
+    if not isinstance(payload, dict):
+        return None
+    owner_user_id = payload.get("owner_user_id")
+    return str(owner_user_id) if owner_user_id else None
+
+
+def is_run_visible(
+    run_dir: Path,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> bool:
+    if include_all:
+        return True
+    if owner_user_id is None:
+        return False
+    return get_run_owner_id(run_dir) == owner_user_id
+
+
 def discover_run_dirs(runs_root: Path, limit: int | None = None) -> list[Path]:
     if not runs_root.exists():
         return []
@@ -187,9 +208,17 @@ def _extract_run_summary(
     }
 
 
-def list_runs(settings: AppSettings, *, limit: int | None = None) -> list[dict[str, Any]]:
+def list_runs(
+    settings: AppSettings,
+    *,
+    limit: int | None = None,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
-    for run_dir in discover_run_dirs(settings.storage.runs_root, limit=limit):
+    for run_dir in discover_run_dirs(settings.storage.runs_root):
+        if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
+            continue
         report_payload, _ = safe_load_json(run_dir / "reports" / "report.json")
         metrics_payload, _ = safe_load_json(run_dir / "metrics" / "execution_metrics.json")
         runs.append(
@@ -199,6 +228,8 @@ def list_runs(settings: AppSettings, *, limit: int | None = None) -> list[dict[s
                 metrics_payload=metrics_payload if isinstance(metrics_payload, dict) else None,
             )
         )
+        if limit is not None and len(runs) >= max(0, limit):
+            break
     return runs
 
 
@@ -245,9 +276,17 @@ def _load_memory_retrievals(run_dir: Path) -> list[dict[str, Any]]:
     return retrievals
 
 
-def get_run_detail(settings: AppSettings, run_id: str) -> dict[str, Any] | None:
+def get_run_detail(
+    settings: AppSettings,
+    run_id: str,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any] | None:
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
     if run_dir is None:
+        return None
+    if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
         return None
 
     report_payload, report_error = safe_load_json(run_dir / "reports" / "report.json")
@@ -288,8 +327,13 @@ def get_run_detail(settings: AppSettings, run_id: str) -> dict[str, Any] | None:
     }
 
 
-def build_overview(settings: AppSettings) -> dict[str, Any]:
-    runs = list_runs(settings)
+def build_overview(
+    settings: AppSettings,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any]:
+    runs = list_runs(settings, owner_user_id=owner_user_id, include_all=include_all)
     passed_runs = [run for run in runs if run["status"] == "passed"]
     failed_runs = [run for run in runs if run["status"] == "failed"]
     latest_run = runs[0] if runs else None
@@ -306,16 +350,26 @@ def build_overview(settings: AppSettings) -> dict[str, Any]:
     }
 
 
-def list_reports(settings: AppSettings) -> list[dict[str, Any]]:
+def list_reports(
+    settings: AppSettings,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    for run in list_runs(settings):
+    for run in list_runs(settings, owner_user_id=owner_user_id, include_all=include_all):
         if not run["report_json_exists"] and not run["report_html_exists"]:
             continue
         items.append(run)
     return items
 
 
-def build_memory_summary(settings: AppSettings) -> dict[str, Any]:
+def build_memory_summary(
+    settings: AppSettings,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any]:
     store_path = settings.memory.vector_db_path
     manifest_payload, _ = safe_load_json(store_path / "manifest.json")
     entries_count = (
@@ -326,7 +380,9 @@ def build_memory_summary(settings: AppSettings) -> dict[str, Any]:
     latest_writes: list[dict[str, Any]] = []
     latest_retrievals: list[dict[str, Any]] = []
 
-    for run_dir in discover_run_dirs(settings.storage.runs_root, limit=10):
+    for run_dir in discover_run_dirs(settings.storage.runs_root):
+        if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
+            continue
         store_payload, _ = safe_load_json(run_dir / "logs" / "stored_memory_entry.json")
         if isinstance(store_payload, dict) and len(latest_writes) < 5:
             entry = store_payload.get("entry") or {}
@@ -354,7 +410,7 @@ def build_memory_summary(settings: AppSettings) -> dict[str, Any]:
         if len(latest_writes) >= 5 and len(latest_retrievals) >= 5:
             break
 
-    recent_runs = list_runs(settings, limit=10)
+    recent_runs = list_runs(settings, limit=10, owner_user_id=owner_user_id, include_all=include_all)
     return {
         "enabled": settings.memory.enabled,
         "store_path": str(store_path),
@@ -373,10 +429,17 @@ def build_memory_summary(settings: AppSettings) -> dict[str, Any]:
     }
 
 
-def build_tools_summary(settings: AppSettings) -> dict[str, Any]:
+def build_tools_summary(
+    settings: AppSettings,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any]:
     recent_events: list[dict[str, Any]] = []
     tool_stats: dict[str, dict[str, Any]] = {}
     for run_dir in discover_run_dirs(settings.storage.runs_root, limit=10):
+        if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
+            continue
         payload, _ = safe_load_json(run_dir / "graph" / "tool_trace.json")
         if not isinstance(payload, dict):
             continue
@@ -417,8 +480,13 @@ def build_tools_summary(settings: AppSettings) -> dict[str, Any]:
     }
 
 
-def build_metrics_summary(settings: AppSettings) -> dict[str, Any]:
-    runs = list_runs(settings)
+def build_metrics_summary(
+    settings: AppSettings,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any]:
+    runs = list_runs(settings, owner_user_id=owner_user_id, include_all=include_all)
     total_runs = len(runs)
     passed_runs = sum(1 for run in runs if run["status"] == "passed")
     duration_values = [run["duration_ms"] for run in runs if isinstance(run["duration_ms"], int)]
@@ -459,12 +527,25 @@ def build_settings_summary(settings: AppSettings) -> dict[str, Any]:
         "mcp_tool_tracing_enabled": settings.mcp.tool_tracing_enabled,
         "mcp_timeout_seconds": settings.mcp.timeout_seconds,
         "mcp_enabled_tools": list(settings.mcp.enabled_tools),
+        "auth_enabled": settings.auth.enabled,
+        "auth_sqlite_path": str(settings.auth.sqlite_path),
+        "auth_cookie_name": settings.auth.cookie_name,
+        "auth_token_expire_minutes": settings.auth.token_expire_minutes,
+        "auth_secure_cookie": settings.auth.secure_cookie,
     }
 
 
-def list_api_screenshots(settings: AppSettings, run_id: str) -> dict[str, Any] | None:
+def list_api_screenshots(
+    settings: AppSettings,
+    run_id: str,
+    *,
+    owner_user_id: str | None = None,
+    include_all: bool = True,
+) -> dict[str, Any] | None:
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
     if run_dir is None:
+        return None
+    if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
         return None
     return {
         "run_id": run_id,
