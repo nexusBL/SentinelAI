@@ -36,6 +36,7 @@ flowchart LR
     U[User Instruction] --> UI[CLI or FastAPI Dashboard]
     UI --> AUTH[JWT Auth and User Scope]
     AUTH --> J[Async Job Queue]
+    J --> DB[(SQLAlchemy Metadata DB)]
     J --> G[LangGraph Workflow]
     G --> MR[Memory Retrieval]
     MR --> P[Ollama Planner]
@@ -43,6 +44,7 @@ flowchart LR
     MCP --> E[Playwright Executor]
     E --> V[Validation Engine]
     V --> R[Reports and Artifacts]
+    R --> DB
     V --> MW[Memory Storage]
     R --> D[Dashboard Artifact Views]
 ```
@@ -75,7 +77,8 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Phase 11 | Real dashboard screenshots and visual showcase assets | Complete |
 | Phase 12 | Local production Docker Compose and NGINX deployment foundation | Complete |
 | Phase 13 | Async job queue, background worker, and live dashboard polling | Complete |
-| Phase 14 | JWT authentication, SQLite users, and user-isolated jobs/runs | Complete |
+| Phase 14 | JWT authentication, bcrypt passwords, and user-isolated jobs/runs | Complete |
+| Phase 15 | SQLAlchemy metadata database and Alembic migrations | Complete |
 
 ## Repository Layout
 
@@ -83,10 +86,11 @@ More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 SentinelAI/
 |-- ai/                 # Ollama HTTP client
 |-- agents/             # Planner and LangGraph orchestration
-|-- auth/               # SQLite users, bcrypt passwords, and JWT helpers
+|-- auth/               # bcrypt password handling and JWT helpers
 |-- browser/            # Playwright execution and browser result models
 |-- config/             # Environment-driven runtime settings
 |-- dashboard/          # Optional FastAPI dashboard, templates, and static assets
+|-- database/           # SQLAlchemy models, sessions, and repository layer
 |-- docker/             # Production-style Docker Compose, app image, and NGINX config
 |-- docs/               # Architecture, demo, troubleshooting, and screenshot placeholders
 |-- jobs/               # Lightweight in-process async job queue and worker
@@ -244,7 +248,7 @@ Common outputs include:
 - planner raw response and normalized test plan files
 
 Persistent memory is stored separately under `memory_store/` by default.
-Local users are stored under `auth_store/` by default.
+Structured metadata, including users, jobs, and runs, is stored under `metadata_store/` by default.
 
 ## Testing and Quality Gates
 
@@ -270,6 +274,7 @@ What the quality system covers:
 - dashboard route and utility safety
 - async job lifecycle and dashboard polling APIs
 - signup, login, JWT validation, protected routes, and ownership boundaries
+- SQLAlchemy metadata persistence, ownership queries, and Alembic migrations
 - backward compatibility of the CLI
 
 GitHub Actions runs the same core checks on `push` and `pull_request` to `main`.
@@ -306,7 +311,7 @@ The deployment uses:
 - `sentinelai-nginx`: reverse proxy on localhost port `8000`
 - `sentinelai_artifacts`: persistent Docker volume for reports and screenshots
 - `sentinelai_memory_store`: persistent Docker volume for FAISS memory
-- `sentinelai_auth_store`: persistent Docker volume for SQLite users
+- `sentinelai_metadata_store`: persistent Docker volume for SQLAlchemy metadata
 - `requirements-docker.txt`: slimmer deployment dependency profile using hashing embeddings
 - official Playwright Python runtime image for browser-ready container execution
 
@@ -344,6 +349,7 @@ Additional dashboard screenshots are stored in [docs/screenshots](docs/screensho
 - MCP-style tool abstraction for browser, memory, and validation capabilities
 - product-style dashboard layered cleanly over the CLI/runtime
 - JWT auth and user-isolated local resources without rewriting the workflow engine
+- SQLAlchemy/Alembic metadata layer while preserving filesystem artifacts
 - offline-friendly tests, smoke checks, and GitHub CI
 - modular architecture designed for future hosted UI, additional tools, or cloud execution
 
@@ -351,6 +357,7 @@ Additional dashboard screenshots are stored in [docs/screenshots](docs/screensho
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/AUTH.md](docs/AUTH.md)
+- [docs/DATABASE.md](docs/DATABASE.md)
 - [docs/DEMO.md](docs/DEMO.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/JOBS.md](docs/JOBS.md)

@@ -32,6 +32,19 @@
   </article>
 </section>
 
+{% if metrics_summary.metadata %}
+<section class="panel">
+  <div class="panel-head"><h3>Metadata Database</h3></div>
+  <div class="settings-grid">
+    <div class="settings-item"><span>Total Users</span><strong>{{ metrics_summary.metadata.total_users }}</strong></div>
+    <div class="settings-item"><span>Persisted Jobs</span><strong>{{ metrics_summary.metadata.total_jobs }}</strong></div>
+    <div class="settings-item"><span>Persisted Runs</span><strong>{{ metrics_summary.metadata.total_runs }}</strong></div>
+    <div class="settings-item"><span>Failed Jobs</span><strong>{{ metrics_summary.metadata.failed_jobs }}</strong></div>
+    <div class="settings-item"><span>Failed Runs</span><strong>{{ metrics_summary.metadata.failed_runs }}</strong></div>
+  </div>
+</section>
+{% endif %}
+
 <section class="panel">
   <div class="panel-head"><h3>Async Job Queue</h3></div>
   <div class="settings-grid">

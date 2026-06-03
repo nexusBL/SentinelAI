@@ -32,6 +32,8 @@ ENV_KEYS = [
     "SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES",
     "SENTINELAI_AUTH_COOKIE_NAME",
     "SENTINELAI_AUTH_SECURE_COOKIE",
+    "SENTINELAI_DATABASE_SQLITE_PATH",
+    "SENTINELAI_DATABASE_URL",
 ]
 
 
@@ -66,6 +68,8 @@ def test_load_settings_uses_expected_defaults(monkeypatch, tmp_path: Path):
     assert settings.auth.token_expire_minutes == 1440
     assert settings.auth.cookie_name == "sentinelai_session"
     assert settings.auth.secure_cookie is False
+    assert settings.database.sqlite_path == tmp_path / "metadata_store" / "sentinelai_metadata.db"
+    assert settings.database.url == f"sqlite:///{(tmp_path / 'metadata_store' / 'sentinelai_metadata.db').as_posix()}"
     assert settings.storage.artifacts_root == tmp_path / "artifacts"
     assert settings.storage.runs_root == tmp_path / "artifacts" / "runs"
 
@@ -97,6 +101,8 @@ def test_load_settings_reads_env_overrides(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES", "30")
     monkeypatch.setenv("SENTINELAI_AUTH_COOKIE_NAME", "custom_session")
     monkeypatch.setenv("SENTINELAI_AUTH_SECURE_COOKIE", "true")
+    monkeypatch.setenv("SENTINELAI_DATABASE_SQLITE_PATH", "custom_metadata/meta.db")
+    monkeypatch.setenv("SENTINELAI_DATABASE_URL", "sqlite:///override.db")
 
     settings = load_settings(project_root=tmp_path)
 
@@ -126,3 +132,5 @@ def test_load_settings_reads_env_overrides(monkeypatch, tmp_path: Path):
     assert settings.auth.token_expire_minutes == 30
     assert settings.auth.cookie_name == "custom_session"
     assert settings.auth.secure_cookie is True
+    assert settings.database.sqlite_path == tmp_path / "custom_metadata" / "meta.db"
+    assert settings.database.url == "sqlite:///override.db"

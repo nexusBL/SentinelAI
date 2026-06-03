@@ -24,6 +24,7 @@ jobs:
       SENTINELAI_MCP_TOOL_TRACING_ENABLED: "false"
       SENTINELAI_AUTH_SQLITE_PATH: ".ci_auth_store/sentinelai_auth.db"
       SENTINELAI_AUTH_JWT_SECRET: "sentinelai-ci-test-secret-with-enough-length"
+      SENTINELAI_DATABASE_SQLITE_PATH: ".ci_metadata_store/sentinelai_metadata.db"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

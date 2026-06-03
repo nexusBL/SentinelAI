@@ -7,6 +7,9 @@ from collections.abc import Callable
 from typing import Any
 
 from config.settings import AppSettings
+from database.repositories import MetadataRepository
+from database.session import create_session_factory
+from database.session import initialize_database
 from jobs.models import JobRecord
 from jobs.models import JobRequest
 from jobs.models import utc_now
@@ -21,6 +24,7 @@ class JobManager:
         settings: AppSettings,
         *,
         executor: Executor | None = None,
+        repository: MetadataRepository | None = None,
     ) -> None:
         self.settings = settings
         self._jobs: dict[str, JobRecord] = {}
@@ -28,6 +32,10 @@ class JobManager:
         self._lock = asyncio.Lock()
         self._worker_task: asyncio.Task | None = None
         self._executor = executor or JobWorker(settings).execute
+        if repository is None:
+            initialize_database(settings)
+            repository = MetadataRepository(create_session_factory(settings))
+        self.repository = repository
 
     async def start(self) -> None:
         if self._worker_task is None or self._worker_task.done():
@@ -56,12 +64,14 @@ class JobManager:
         )
         async with self._lock:
             self._jobs[job.job_id] = job
+            self.repository.upsert_job(job)
         await self._queue.put(job.job_id)
         return job
 
     async def get(self, job_id: str) -> JobRecord | None:
         async with self._lock:
-            return self._jobs.get(job_id)
+            job = self._jobs.get(job_id)
+        return job or self.repository.get_job(job_id)
 
     async def list_jobs(
         self,
@@ -69,10 +79,7 @@ class JobManager:
         owner_user_id: str | None = None,
         include_all: bool = True,
     ) -> list[JobRecord]:
-        async with self._lock:
-            jobs = list(self._jobs.values())
-        if not include_all:
-            jobs = [job for job in jobs if job.owner_user_id == owner_user_id]
+        jobs = self.repository.list_jobs(owner_user_id=owner_user_id, include_all=include_all)
         return sorted(jobs, key=lambda item: item.created_at, reverse=True)
 
     async def active_jobs(
@@ -94,6 +101,8 @@ class JobManager:
         async with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
+                job = self.repository.get_job(job_id)
+            if job is None:
                 return None
             if not include_all and job.owner_user_id != owner_user_id:
                 return None
@@ -113,6 +122,8 @@ class JobManager:
                     **job.progress,
                     "message": "Cancellation requested; current workflow will finish best-effort.",
                 }
+            self._jobs[job.job_id] = job
+            self.repository.upsert_job(job)
             return job
 
     async def metrics(self) -> dict[str, Any]:
@@ -162,6 +173,7 @@ class JobManager:
                 "stage": "running",
                 "percent": 20,
             }
+            self.repository.upsert_job(job)
 
         try:
             summary = await self._executor(job)
@@ -176,6 +188,7 @@ class JobManager:
                         "stage": "failed",
                         "percent": 100,
                     }
+                    self.repository.upsert_job(job)
             return
 
         async with self._lock:
@@ -206,6 +219,9 @@ class JobManager:
                 "stage": stage,
                 "percent": 100,
             }
+            self.repository.upsert_job(job)
+            if job.run_id:
+                self._persist_run_metadata(job)
 
     def _write_run_owner(self, job: JobRecord) -> None:
         if not job.run_id or not job.owner_user_id:
@@ -223,3 +239,56 @@ class JobManager:
             ),
             encoding="utf-8",
         )
+
+    def _persist_run_metadata(self, job: JobRecord) -> None:
+        if not job.run_id:
+            return
+        run_dir = self.settings.storage.runs_root / job.run_id
+        report_payload = self._load_json(run_dir / "reports" / "report.json")
+        metrics_payload = self._load_json(run_dir / "metrics" / "execution_metrics.json")
+        summary = self._summary_from_job(job, report_payload, metrics_payload)
+        self.repository.upsert_run_from_summary(
+            run_id=job.run_id,
+            owner_user_id=job.owner_user_id,
+            job_id=job.job_id,
+            summary=summary,
+            artifact_path=str(run_dir),
+            metrics_summary=metrics_payload if isinstance(metrics_payload, dict) else None,
+        )
+
+    def _summary_from_job(
+        self,
+        job: JobRecord,
+        report_payload: dict[str, Any] | None,
+        metrics_payload: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        report_payload = report_payload or {}
+        workflow = report_payload.get("workflow", {}) if isinstance(report_payload, dict) else {}
+        return {
+            "run_id": job.run_id,
+            "phase": report_payload.get("phase") or job.request.mode,
+            "status": report_payload.get("status") or job.status,
+            "requested_url": report_payload.get("requested_url") or job.request.url,
+            "final_url": report_payload.get("final_url") or (job.result_summary or {}).get("final_url"),
+            "instruction": report_payload.get("instruction") or job.request.instruction,
+            "page_title": report_payload.get("page_title"),
+            "created_at": report_payload.get("created_at") or job.created_at.isoformat().replace("+00:00", "Z"),
+            "duration_ms": (job.result_summary or {}).get("duration_ms"),
+            "retry_count": workflow.get("retry_count", (job.result_summary or {}).get("retry_count", 0)),
+            "memory_hits": workflow.get("memory_hits", (job.result_summary or {}).get("memory_hits", 0)),
+            "mcp_enabled": workflow.get("mcp_enabled", job.request.mcp_enabled),
+            "tool_invocation_count": workflow.get(
+                "tool_invocation_count",
+                (job.result_summary or {}).get("tool_invocation_count", 0),
+            ),
+            "failure_reason": report_payload.get("failure_reason") or job.failure_reason,
+        }
+
+    def _load_json(self, path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None

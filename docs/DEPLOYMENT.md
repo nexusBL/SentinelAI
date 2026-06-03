@@ -10,7 +10,7 @@ flowchart LR
     Nginx --> App[FastAPI + Gunicorn + One Uvicorn Worker]
     App --> Artifacts[(artifacts volume)]
     App --> Memory[(memory_store volume)]
-    App --> Auth[(auth_store SQLite volume)]
+    App --> Metadata[(metadata_store SQLite volume)]
     App --> Ollama[Host Ollama Service]
 ```
 
@@ -22,7 +22,7 @@ The Docker stack contains:
 | `sentinelai-nginx` | Reverse proxy that exposes the app at `http://127.0.0.1:8000` |
 | `sentinelai_artifacts` | Named Docker volume for run reports, screenshots, traces, and metrics |
 | `sentinelai_memory_store` | Named Docker volume for FAISS memory data |
-| `sentinelai_auth_store` | Named Docker volume for SQLite users and password hashes |
+| `sentinelai_metadata_store` | Named Docker volume for SQLAlchemy metadata |
 
 ## Prerequisites
 
@@ -110,7 +110,7 @@ The app writes generated data into Docker named volumes:
 
 - `/app/artifacts` stores `artifacts/runs/<run_id>/`
 - `/app/memory_store` stores FAISS memory data
-- `/app/auth_store` stores the SQLite auth database
+- `/app/metadata_store` stores the SQLite metadata database, including users/jobs/runs
 
 These volumes survive container restarts and rebuilds. They are intentionally separate from the source tree so deployment runs do not dirty the Git worktree.
 
@@ -124,7 +124,7 @@ Most runtime settings come from environment variables. Important deployment valu
 |---|---|---|
 | `SENTINELAI_ARTIFACTS_DIR` | `/app/artifacts` | Run artifact storage |
 | `SENTINELAI_MEMORY_VECTOR_DB_PATH` | `/app/memory_store` | Persistent memory path |
-| `SENTINELAI_AUTH_SQLITE_PATH` | `/app/auth_store/sentinelai_auth.db` | SQLite user database |
+| `SENTINELAI_DATABASE_SQLITE_PATH` | `/app/metadata_store/sentinelai_metadata.db` | SQLAlchemy metadata database |
 | `SENTINELAI_AUTH_JWT_SECRET` | local demo secret | JWT signing secret; change this for shared environments |
 | `SENTINELAI_OLLAMA_ENDPOINT` | `http://host.docker.internal:11434/api/generate` | Host Ollama API |
 | `SENTINELAI_BROWSER_HEADLESS` | `true` | Headless browser automation |
@@ -138,19 +138,31 @@ The Docker image installs from `requirements-docker.txt`, which is intentionally
 
 The app image uses the official Playwright Python runtime image so Chromium and its OS libraries are already present. The deployment profile uses the default hashing embedding provider, so it does not install the optional `sentence-transformers` stack. Local development keeps the full dependency file for experimentation.
 
-The container starts as root only long enough to prepare the mounted artifact, memory, and auth volumes, then the entrypoint launches Gunicorn as the non-root `pwuser` user.
+The container starts as root only long enough to prepare the mounted artifact, memory, and metadata volumes, then the entrypoint launches Gunicorn as the non-root `pwuser` user.
 
 ## Authentication Notes
 
 The Docker dashboard uses the same local signup/login flow as development mode. Open `http://127.0.0.1:8000`, create the first account, and that first user becomes an admin.
 
-Auth data persists in the `sentinelai_auth_store` named volume. To reset local Docker users completely:
+Auth data persists in the `sentinelai_metadata_store` named volume. To reset local Docker users completely:
 
 ```powershell
 docker compose -f docker/docker-compose.yml down -v
 ```
 
 For real shared deployments, replace `SENTINELAI_AUTH_JWT_SECRET` in `docker/docker-compose.yml` with a unique long secret and serve the dashboard over HTTPS before setting `SENTINELAI_AUTH_SECURE_COOKIE=true`.
+
+## Metadata Database
+
+Phase 15 persists users, jobs, runs, ownership, and lifecycle state through SQLAlchemy. Artifacts still live under `/app/artifacts`.
+
+The app initializes the SQLite metadata database automatically on startup. Alembic migrations are available for explicit schema upgrades:
+
+```powershell
+docker compose -f docker/docker-compose.yml exec app alembic upgrade head
+```
+
+Metadata persists in the `sentinelai_metadata_store` named volume.
 
 ## Troubleshooting
 

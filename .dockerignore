@@ -3,4 +3,5 @@ __pycache__
 artifacts/runs
 memory_store
 auth_store
+metadata_store
 .git

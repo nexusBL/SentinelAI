@@ -27,6 +27,8 @@ def main() -> int:
         settings.storage.runs_root = settings.storage.artifacts_root / "runs"
         settings.memory.vector_db_path = temp_root / "memory_store"
         settings.auth.sqlite_path = temp_root / "auth_store" / "sentinelai_auth.db"
+        settings.database.sqlite_path = temp_root / "metadata_store" / "sentinelai_metadata.db"
+        settings.database.url = f"sqlite:///{settings.database.sqlite_path.as_posix()}"
 
         sample_test_path = repo_root / "testcases" / "sample_test.json"
         failing_test_path = repo_root / "testcases" / "failing_sample_test.json"
@@ -58,12 +60,22 @@ def main() -> int:
             "dashboard_loaded": dashboard_app is not None,
             "dashboard_route_count": len(dashboard_app.router.routes),
             "auth_enabled": settings.auth.enabled,
-            "auth_store_path": str(settings.auth.sqlite_path),
+            "metadata_db_path": str(settings.database.sqlite_path),
+            "metadata_db_exists": settings.database.sqlite_path.exists(),
             "job_manager_loaded": job_manager is not None,
             "job_worker_running": job_metrics["worker_running"],
             "job_queue_length": job_metrics["queue_length"],
         }
         print(json.dumps(summary, indent=2))
+        for repository in {
+            getattr(dashboard_app.state, "metadata_repository", None),
+            getattr(job_manager, "repository", None),
+        }:
+            if repository is None:
+                continue
+            engine = repository.session_factory.kw.get("bind")
+            if engine is not None:
+                engine.dispose()
     return 0
 
 

@@ -104,6 +104,8 @@ def temp_settings(tmp_path: Path):
     settings.auth.sqlite_path = tmp_path / "auth_store" / "sentinelai_auth.db"
     settings.auth.jwt_secret = "test-secret-key-for-sentinelai-auth-tests"
     settings.auth.secure_cookie = False
+    settings.database.sqlite_path = tmp_path / "metadata_store" / "sentinelai_metadata.db"
+    settings.database.url = f"sqlite:///{settings.database.sqlite_path.as_posix()}"
     return settings
 
 

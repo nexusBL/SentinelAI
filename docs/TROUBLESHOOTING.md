@@ -74,7 +74,7 @@ Symptoms:
 Local development fix:
 
 ```powershell
-Remove-Item -Recurse -Force auth_store
+Remove-Item -Recurse -Force metadata_store
 ```
 
 Then restart the dashboard and sign up again. The first new account becomes admin.

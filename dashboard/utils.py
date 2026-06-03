@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import AppSettings
+from database.repositories import MetadataRepository
+from database.session import create_session_factory
+from database.session import initialize_database
 
 
 RUN_ID_PATTERN = re.compile(r"^\d{8}T\d{12}Z$")
@@ -208,6 +211,82 @@ def _extract_run_summary(
     }
 
 
+def _metadata_repository(settings: AppSettings) -> MetadataRepository:
+    initialize_database(settings)
+    return MetadataRepository(create_session_factory(settings))
+
+
+def sync_artifact_run_metadata(
+    settings: AppSettings,
+    repository: MetadataRepository | None = None,
+) -> None:
+    repository = repository or _metadata_repository(settings)
+    for run_dir in discover_run_dirs(settings.storage.runs_root):
+        report_payload, _ = safe_load_json(run_dir / "reports" / "report.json")
+        metrics_payload, _ = safe_load_json(run_dir / "metrics" / "execution_metrics.json")
+        summary = _extract_run_summary(
+            run_dir=run_dir,
+            report_payload=report_payload if isinstance(report_payload, dict) else None,
+            metrics_payload=metrics_payload if isinstance(metrics_payload, dict) else None,
+        )
+        repository.upsert_run_from_summary(
+            run_id=run_dir.name,
+            owner_user_id=get_run_owner_id(run_dir),
+            job_id=None,
+            summary=summary,
+            artifact_path=str(run_dir),
+            metrics_summary=metrics_payload if isinstance(metrics_payload, dict) else None,
+            created_from="filesystem",
+        )
+
+
+def _enrich_run_summary_from_filesystem(
+    settings: AppSettings,
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    run_id = str(summary.get("run_id"))
+    run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
+    enriched = dict(summary)
+    if run_dir is None:
+        enriched.update(
+            {
+                "created_at_display": humanize_datetime(summary.get("created_at")),
+                "duration_display": humanize_duration(summary.get("duration_ms")),
+                "total_steps": 0,
+                "passed_steps": 0,
+                "total_assertions": 0,
+                "passed_assertions": 0,
+                "report_json_exists": False,
+                "report_html_exists": False,
+                "metrics_exists": False,
+                "graph_trace_exists": False,
+                "tool_trace_exists": False,
+                "planner_trace_exists": False,
+                "before_screenshot": None,
+                "after_screenshot": None,
+            }
+        )
+        return enriched
+
+    report_payload, _ = safe_load_json(run_dir / "reports" / "report.json")
+    metrics_payload, _ = safe_load_json(run_dir / "metrics" / "execution_metrics.json")
+    filesystem_summary = _extract_run_summary(
+        run_dir=run_dir,
+        report_payload=report_payload if isinstance(report_payload, dict) else None,
+        metrics_payload=metrics_payload if isinstance(metrics_payload, dict) else None,
+    )
+    filesystem_summary.update(
+        {
+            key: value
+            for key, value in enriched.items()
+            if value is not None
+        }
+    )
+    filesystem_summary["created_at_display"] = humanize_datetime(filesystem_summary.get("created_at"))
+    filesystem_summary["duration_display"] = humanize_duration(filesystem_summary.get("duration_ms"))
+    return filesystem_summary
+
+
 def list_runs(
     settings: AppSettings,
     *,
@@ -215,22 +294,14 @@ def list_runs(
     owner_user_id: str | None = None,
     include_all: bool = True,
 ) -> list[dict[str, Any]]:
-    runs: list[dict[str, Any]] = []
-    for run_dir in discover_run_dirs(settings.storage.runs_root):
-        if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
-            continue
-        report_payload, _ = safe_load_json(run_dir / "reports" / "report.json")
-        metrics_payload, _ = safe_load_json(run_dir / "metrics" / "execution_metrics.json")
-        runs.append(
-            _extract_run_summary(
-                run_dir=run_dir,
-                report_payload=report_payload if isinstance(report_payload, dict) else None,
-                metrics_payload=metrics_payload if isinstance(metrics_payload, dict) else None,
-            )
-        )
-        if limit is not None and len(runs) >= max(0, limit):
-            break
-    return runs
+    repository = _metadata_repository(settings)
+    sync_artifact_run_metadata(settings, repository)
+    summaries = repository.list_run_summaries(
+        limit=limit,
+        owner_user_id=owner_user_id,
+        include_all=include_all,
+    )
+    return [_enrich_run_summary_from_filesystem(settings, summary) for summary in summaries]
 
 
 def list_screenshots(run_dir: Path, run_id: str) -> list[dict[str, Any]]:
@@ -286,7 +357,13 @@ def get_run_detail(
     run_dir = resolve_run_dir(settings.storage.runs_root, run_id)
     if run_dir is None:
         return None
-    if not is_run_visible(run_dir, owner_user_id=owner_user_id, include_all=include_all):
+    repository = _metadata_repository(settings)
+    sync_artifact_run_metadata(settings, repository)
+    db_summary = repository.get_run_summary(run_id)
+    if not include_all and (
+        db_summary is None
+        or db_summary.get("owner_user_id") != owner_user_id
+    ):
         return None
 
     report_payload, report_error = safe_load_json(run_dir / "reports" / "report.json")
@@ -301,6 +378,9 @@ def get_run_detail(
         report_payload=report_payload_dict,
         metrics_payload=metrics_payload_dict,
     )
+    if db_summary:
+        summary.update({key: value for key, value in db_summary.items() if value is not None})
+        summary = _enrich_run_summary_from_filesystem(settings, summary)
     memory_retrievals = _load_memory_retrievals(run_dir)
     latest_memory_context = memory_retrievals[0]["prompt_context"] if memory_retrievals else None
     return {
@@ -487,6 +567,7 @@ def build_metrics_summary(
     include_all: bool = True,
 ) -> dict[str, Any]:
     runs = list_runs(settings, owner_user_id=owner_user_id, include_all=include_all)
+    repository = _metadata_repository(settings)
     total_runs = len(runs)
     passed_runs = sum(1 for run in runs if run["status"] == "passed")
     duration_values = [run["duration_ms"] for run in runs if isinstance(run["duration_ms"], int)]
@@ -508,6 +589,7 @@ def build_metrics_summary(
         "average_memory_hits": average(memory_hits),
         "average_tool_invocations": average(tool_invocations),
         "recent_runs": runs[:10],
+        "metadata": repository.admin_counts() if include_all else {},
     }
 
 
@@ -532,6 +614,8 @@ def build_settings_summary(settings: AppSettings) -> dict[str, Any]:
         "auth_cookie_name": settings.auth.cookie_name,
         "auth_token_expire_minutes": settings.auth.token_expire_minutes,
         "auth_secure_cookie": settings.auth.secure_cookie,
+        "database_url": settings.database.url,
+        "database_sqlite_path": str(settings.database.sqlite_path),
     }
 
 

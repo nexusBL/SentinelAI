@@ -7,10 +7,12 @@ __pycache__/
 .ci_artifacts/
 .ci_memory_store/
 .ci_auth_store/
+.ci_metadata_store/
 
 artifacts/runs/
 playwright-report/
 memory_store/
 auth_store/
+metadata_store/
 
 .env

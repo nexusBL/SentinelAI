@@ -84,6 +84,12 @@ class AuthSettings:
 
 
 @dataclass(slots=True)
+class DatabaseSettings:
+    sqlite_path: Path
+    url: str
+
+
+@dataclass(slots=True)
 class AppSettings:
     browser: BrowserSettings
     storage: StorageSettings
@@ -92,6 +98,7 @@ class AppSettings:
     memory: MemorySettings
     mcp: MCPSettings
     auth: AuthSettings
+    database: DatabaseSettings
 
 
 def load_settings(project_root: Path | None = None) -> AppSettings:
@@ -113,6 +120,19 @@ def load_settings(project_root: Path | None = None) -> AppSettings:
     )
     if not auth_sqlite_path.is_absolute():
         auth_sqlite_path = resolved_root / auth_sqlite_path
+
+    database_sqlite_path = Path(
+        os.getenv(
+            "SENTINELAI_DATABASE_SQLITE_PATH",
+            str(resolved_root / "metadata_store" / "sentinelai_metadata.db"),
+        )
+    )
+    if not database_sqlite_path.is_absolute():
+        database_sqlite_path = resolved_root / database_sqlite_path
+    database_url = os.getenv(
+        "SENTINELAI_DATABASE_URL",
+        f"sqlite:///{database_sqlite_path.as_posix()}",
+    )
 
     return AppSettings(
         browser=BrowserSettings(
@@ -173,5 +193,9 @@ def load_settings(project_root: Path | None = None) -> AppSettings:
             token_expire_minutes=_get_int("SENTINELAI_AUTH_TOKEN_EXPIRE_MINUTES", 1440),
             cookie_name=os.getenv("SENTINELAI_AUTH_COOKIE_NAME", "sentinelai_session"),
             secure_cookie=_get_bool("SENTINELAI_AUTH_SECURE_COOKIE", False),
+        ),
+        database=DatabaseSettings(
+            sqlite_path=database_sqlite_path,
+            url=database_url,
         ),
     )

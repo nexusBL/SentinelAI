@@ -12,6 +12,7 @@ Core properties:
 - optional AI planning and dashboard layers
 - persistent memory across runs
 - authenticated user isolation for dashboard resources
+- relational metadata persistence for users, jobs, and runs
 - artifact-first observability
 - testable, CI-friendly packaging
 
@@ -22,6 +23,7 @@ flowchart LR
     U[User Instruction] --> Entry[CLI or FastAPI Dashboard]
     Entry --> Auth[JWT Auth and User Scope]
     Auth --> Jobs[Async Job Queue]
+    Jobs --> DB[(SQLAlchemy Metadata DB)]
     Jobs --> Graph[LangGraph Workflow]
     Graph --> Retrieve[Memory Retrieval]
     Retrieve --> Planner[Ollama Planner]
@@ -29,6 +31,7 @@ flowchart LR
     Tools --> Browser[Playwright Executor]
     Browser --> Validate[Validation Engine]
     Validate --> Artifacts[Reports and Artifacts]
+    Artifacts --> DB
     Validate --> Store[Memory Storage]
 ```
 
@@ -48,6 +51,7 @@ flowchart LR
 | `mcp_servers/` | MCP-style tool servers and registry abstraction |
 | `reporting/` | JSON/HTML report generation and artifact management |
 | `dashboard/` | Optional FastAPI UI for runs, reports, traces, memory, tools, and metrics |
+| `database/` | SQLAlchemy models, session setup, and repository abstraction for metadata |
 | `tests/` | Offline-friendly quality and regression protection |
 
 ## Data Flow
@@ -55,14 +59,16 @@ flowchart LR
 1. A user triggers SentinelAI from the CLI or dashboard.
 2. Dashboard requests are authenticated with a JWT cookie and scoped to the current user.
 3. Dashboard runs are submitted as background jobs.
-4. The LangGraph workflow initializes run context and artifacts.
-5. If memory is enabled, similar prior runs are retrieved from FAISS.
-6. The planner calls Ollama and produces a strict JSON test plan.
-7. The executor runs the plan through Playwright, either directly or via MCP.
-8. The validation layer checks assertions and extracts failure reasons.
-9. Retry and replan logic may loop through the planner again.
-10. Reports, traces, screenshots, and metrics are written to artifacts.
-11. If enabled, summarized run data is stored back into persistent memory.
+4. Job lifecycle state is persisted in the metadata database.
+5. The LangGraph workflow initializes run context and artifacts.
+6. If memory is enabled, similar prior runs are retrieved from FAISS.
+7. The planner calls Ollama and produces a strict JSON test plan.
+8. The executor runs the plan through Playwright, either directly or via MCP.
+9. The validation layer checks assertions and extracts failure reasons.
+10. Retry and replan logic may loop through the planner again.
+11. Reports, traces, screenshots, and metrics are written to artifacts.
+12. Run metadata is upserted into the database while heavy artifacts stay on disk.
+13. If enabled, summarized run data is stored back into persistent memory.
 
 ## Artifact Flow
 
@@ -94,6 +100,12 @@ Local dashboard users are stored in:
 auth_store/
 ```
 
+Structured metadata is stored in:
+
+```text
+metadata_store/
+```
+
 ## Extension Points
 
 SentinelAI is intentionally designed for future extension:
@@ -104,6 +116,7 @@ SentinelAI is intentionally designed for future extension:
 - extend LangGraph nodes without rewriting existing execution logic
 - replace the dashboard with a hosted frontend later while keeping backend APIs intact
 - migrate auth from local SQLite to PostgreSQL or an external identity layer
+- migrate metadata from SQLite to PostgreSQL through SQLAlchemy/Alembic
 - add integration-test tiers or deployment workflows without disturbing unit-test safety
 
 ## Why The Architecture Matters
